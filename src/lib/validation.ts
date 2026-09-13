@@ -359,6 +359,118 @@ export function validateSingleRecord(
         break;
       }
 
+      case 'range_limits': {
+        const strVal = String(targetVal || '');
+        const charLen = strVal.trim().length;
+        const words = strVal.trim().split(/\s+/).filter(Boolean);
+        const wordCount = words.length;
+        const tokenEst = Math.ceil(strVal.length / 4);
+
+        if (rule.params.minLength != null && charLen < rule.params.minLength) {
+          failures.push({
+            ruleId: rule.id,
+            ruleName: rule.name,
+            ruleType: rule.type,
+            message: rule.params.customErrorMessage || `Tegnlengde (${charLen}) er under nedre grense på ${rule.params.minLength} tegn.`,
+            severity: rule.severity,
+            targetColumn: targetCol,
+            actualValue: `${charLen} tegn`,
+          });
+        } else if (rule.params.maxLength != null && charLen > rule.params.maxLength) {
+          failures.push({
+            ruleId: rule.id,
+            ruleName: rule.name,
+            ruleType: rule.type,
+            message: rule.params.customErrorMessage || `Tegnlengde (${charLen}) overskrider øvre grense på ${rule.params.maxLength} tegn.`,
+            severity: rule.severity,
+            targetColumn: targetCol,
+            actualValue: `${charLen} tegn`,
+          });
+        }
+
+        if (rule.params.minWords != null && wordCount < rule.params.minWords) {
+          failures.push({
+            ruleId: rule.id,
+            ruleName: rule.name,
+            ruleType: rule.type,
+            message: rule.params.customErrorMessage || `Antall ord (${wordCount}) er under grensen på ${rule.params.minWords} ord.`,
+            severity: rule.severity,
+            targetColumn: targetCol,
+            actualValue: `${wordCount} ord`,
+          });
+        } else if (rule.params.maxWords != null && wordCount > rule.params.maxWords) {
+          failures.push({
+            ruleId: rule.id,
+            ruleName: rule.name,
+            ruleType: rule.type,
+            message: rule.params.customErrorMessage || `Antall ord (${wordCount}) overskrider tillatt maksimum på ${rule.params.maxWords} ord.`,
+            severity: rule.severity,
+            targetColumn: targetCol,
+            actualValue: `${wordCount} ord`,
+          });
+        }
+
+        if (rule.params.maxTokens != null && tokenEst > rule.params.maxTokens) {
+          failures.push({
+            ruleId: rule.id,
+            ruleName: rule.name,
+            ruleType: rule.type,
+            message: rule.params.customErrorMessage || `Estimert token-forbruk (~${tokenEst}) overskrider mikrokontroller-grensen på ${rule.params.maxTokens} tokens.`,
+            severity: rule.severity,
+            targetColumn: targetCol,
+            actualValue: `~${tokenEst} tokens`,
+          });
+        }
+        break;
+      }
+
+      case 'norwegian_char_frequency': {
+        const strVal = String(targetVal || '');
+        const cleanLen = strVal.replace(/\s+/g, '').length || 1;
+        const norwegianChars = norwegianCharCount.total;
+        const actualFrequencyPct = parseFloat(((norwegianChars / cleanLen) * 100).toFixed(2));
+        const minFreq = rule.params.minNorwegianFrequencyPercent ?? 1.0;
+        const minChars = rule.params.minNorwegianChars ?? 1;
+
+        if (norwegianChars < minChars) {
+          failures.push({
+            ruleId: rule.id,
+            ruleName: rule.name,
+            ruleType: rule.type,
+            message: rule.params.customErrorMessage || `Mangler påkrevde særnorske tegn (fant ${norwegianChars}, krever minst ${minChars} av æ, ø, å).`,
+            severity: rule.severity,
+            targetColumn: targetCol,
+            actualValue: `${norwegianChars} norske tegn`,
+          });
+        } else if (actualFrequencyPct < minFreq) {
+          failures.push({
+            ruleId: rule.id,
+            ruleName: rule.name,
+            ruleType: rule.type,
+            message: rule.params.customErrorMessage || `Frekvens av norske tegn (${actualFrequencyPct}%) er under terskelen på ${minFreq}%.`,
+            severity: rule.severity,
+            targetColumn: targetCol,
+            actualValue: `${actualFrequencyPct}% frekvens`,
+          });
+        }
+
+        if (rule.params.requiredNorwegianCharacters && rule.params.requiredNorwegianCharacters.length > 0) {
+          const missingReq = rule.params.requiredNorwegianCharacters.filter((c) => !strVal.includes(c));
+          if (missingReq.length > 0) {
+            failures.push({
+              ruleId: rule.id,
+              ruleName: rule.name,
+              ruleType: rule.type,
+              message: rule.params.customErrorMessage || `Mangler spesifiserte særnorske tegn: [${missingReq.join(', ')}].`,
+              severity: rule.severity,
+              targetColumn: targetCol,
+              actualValue: `Mangler ${missingReq.join(', ')}`,
+            });
+          }
+        }
+        break;
+      }
+
       case 'ban_mojibake': {
         const strVal = String(targetVal || '');
         const check = detectMojibake(strVal);
@@ -633,6 +745,20 @@ export function getRuleTypeMeta(type: ValidationRuleType): {
         title: 'Ordtelling (Tokens)',
         category: 'Grenser',
         description: 'Setter grenser for tillatt antall ord per ytring.',
+        defaultSeverity: 'warning',
+      };
+    case 'range_limits':
+      return {
+        title: 'Område- og grensebegrensninger',
+        category: 'Grenser',
+        description: 'Definerer absolutte min/maks grenser for tegn, ord, tokens og tallverdier.',
+        defaultSeverity: 'error',
+      };
+    case 'norwegian_char_frequency':
+      return {
+        title: 'Norsk tegnfrekvens & ratio',
+        category: 'Norsk NLP',
+        description: 'Krever en minimumsprosent eller minimum antall særnorske tegn (æ, ø, å) i teksten.',
         defaultSeverity: 'warning',
       };
     case 'unique_text':

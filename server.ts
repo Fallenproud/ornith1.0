@@ -14,6 +14,8 @@ import { StorageManager } from './server/storage';
 import { TinyMLEngine, TrainedModelWeights } from './server/tinyml_engine';
 import { TensorFlowExportService, ExportPackageOptions } from './server/tf_export';
 import { askGeminiOrnith, isGeminiConfigured } from './server/gemini_service';
+import { ModelGateway } from './server/gateway';
+import { requireAuth, optionalAuth, handleAuthSession } from './server/auth_middleware';
 import {
   ProjectMetadata,
   DatasetMetadata,
@@ -39,6 +41,9 @@ const PORT = 3000;
 // Increase body limit for datasets and weights
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+
+// Global optional authentication: parse user identity token & tenant context if provided
+app.use(optionalAuth);
 
 // Initialize persistent storage directories and default Norwegian dataset
 StorageManager.init();
@@ -66,6 +71,32 @@ function broadcastSSE(eventType: string, data: any) {
 }
 
 // -------------------------------------------------------------
+// 0. Authentication Gateway & OAuth2 Session Verification
+// -------------------------------------------------------------
+app.get('/api/auth/session', handleAuthSession);
+
+app.get('/api/auth/providers', (req: Request, res: Response) => {
+  res.json({
+    providers: [
+      {
+        id: 'google',
+        name: 'Google OAuth2',
+        scopes: ['email', 'profile'],
+        description: 'Autentiser via Google Workspace eller personlig Google-konto.',
+        active: true,
+      },
+      {
+        id: 'github',
+        name: 'GitHub OAuth2',
+        scopes: ['user:email', 'read:user'],
+        description: 'Autentiser via GitHub for utviklere og TinyML-forskere.',
+        active: true,
+      },
+    ],
+  });
+});
+
+// -------------------------------------------------------------
 // 1. System Status & Diagnostics
 // -------------------------------------------------------------
 app.get('/api/status', (req: Request, res: Response) => {
@@ -78,6 +109,8 @@ app.get('/api/status', (req: Request, res: Response) => {
     osInfo: `${process.platform} ${process.arch} Node ${process.version}`,
     version: '1.0.0',
     activeRun: activeSession ? activeSession.run : null,
+    user: req.user || null,
+    tenantId: req.tenantId || 'default',
     providers: {
       gemini: {
         configured: isGeminiConfigured(),
@@ -101,14 +134,14 @@ app.get('/api/status', (req: Request, res: Response) => {
 });
 
 // -------------------------------------------------------------
-// 2. Projects
+// 2. Projects (Protected Mutation Endpoints)
 // -------------------------------------------------------------
 app.get('/api/projects', (req: Request, res: Response) => {
   const projects = StorageManager.listProjects();
   res.json(projects);
 });
 
-app.post('/api/projects', (req: Request, res: Response) => {
+app.post('/api/projects', requireAuth, (req: Request, res: Response) => {
   const { name, description, locale, targetArchitecture, datasetId } = req.body;
   const project: ProjectMetadata = {
     id: `proj-${Date.now().toString(36)}`,
@@ -120,6 +153,7 @@ app.post('/api/projects', (req: Request, res: Response) => {
     targetArchitecture: targetArchitecture || 'tinyml-dense',
     datasetId,
     version: '1.0.0',
+    ownerId: req.user?.uid || 'default-user',
   };
   StorageManager.saveProject(project);
   res.json(project);
@@ -131,7 +165,7 @@ app.get('/api/projects/:id', (req: Request, res: Response) => {
   res.json(project);
 });
 
-app.delete('/api/projects/:id', (req: Request, res: Response) => {
+app.delete('/api/projects/:id', requireAuth, (req: Request, res: Response) => {
   const success = StorageManager.deleteProject(req.params.id);
   res.json({ success });
 });
@@ -144,7 +178,7 @@ app.get('/api/projects/:id/validation-rules', (req: Request, res: Response) => {
   res.json(config);
 });
 
-app.put('/api/projects/:id/validation-rules', (req: Request, res: Response) => {
+app.put('/api/projects/:id/validation-rules', requireAuth, (req: Request, res: Response) => {
   const project = StorageManager.getProject(req.params.id);
   if (!project) return res.status(404).json({ error: 'Prosjekt ikke funnet' });
   const { rules, strictMode, autoCleanWhitespace } = req.body;
@@ -199,7 +233,7 @@ app.get('/api/datasets/:id', (req: Request, res: Response) => {
 });
 
 // Upload and parse raw dataset content (CSV / JSON / JSONL / TXT) with project validation rules
-app.post('/api/datasets/upload', (req: Request, res: Response) => {
+app.post('/api/datasets/upload', requireAuth, (req: Request, res: Response) => {
   try {
     const { name, filename, content, format, dialect, license, source, projectId, validationRules, filterInvalid } = req.body;
     if (!content || typeof content !== 'string') {
@@ -357,7 +391,7 @@ app.post('/api/datasets/upload', (req: Request, res: Response) => {
 });
 
 // Re-validate an existing dataset using project rules or custom rules
-app.post('/api/datasets/:id/validate', (req: Request, res: Response) => {
+app.post('/api/datasets/:id/validate', requireAuth, (req: Request, res: Response) => {
   try {
     const dataset = StorageManager.getDataset(req.params.id);
     if (!dataset) return res.status(404).json({ error: 'Datasett ikke funnet' });
@@ -419,7 +453,7 @@ app.get('/api/training/stream', (req: Request, res: Response) => {
   });
 });
 
-app.post('/api/training/start', async (req: Request, res: Response) => {
+app.post('/api/training/start', requireAuth, async (req: Request, res: Response) => {
   try {
     if (activeSession && activeSession.run.status === 'running') {
       return res.status(400).json({ error: 'En treningsøkt pågår allerede. Avbryt eller vent på fullføring.' });
@@ -597,6 +631,8 @@ app.post('/api/training/start', async (req: Request, res: Response) => {
             description: 'Embedded C-header med matrisevekter og ornith_predict() for mikrokontroller.',
             downloadUrl: `/api/artifacts/art-${runId}-c/download`,
             createdAt: new Date().toISOString(),
+            status: 'ready',
+            readinessState: 'ready',
           };
           StorageManager.saveArtifact(cArtifact, cHeader);
 
@@ -612,6 +648,8 @@ app.post('/api/training/start', async (req: Request, res: Response) => {
             description: 'TensorFlow Lite FlatBuffer binærfil for Python, Android og TFLite Micro.',
             downloadUrl: `/api/artifacts/art-${runId}-tflite/download`,
             createdAt: new Date().toISOString(),
+            status: 'ready',
+            readinessState: 'ready',
           };
           StorageManager.saveArtifact(tfliteArtifact, tfliteBuffer);
 
@@ -632,6 +670,8 @@ app.post('/api/training/start', async (req: Request, res: Response) => {
             description: 'Komplett TensorFlow 2.x SavedModel bundle (saved_model.pb, variables, assets).',
             downloadUrl: `/api/artifacts/art-${runId}-savedmodel/download`,
             createdAt: new Date().toISOString(),
+            status: 'ready',
+            readinessState: 'ready',
           };
           StorageManager.saveArtifact(savedModelArtifact, savedModelZipBuffer);
 
@@ -647,6 +687,8 @@ app.post('/api/training/start', async (req: Request, res: Response) => {
             description: 'Trente modellvekter og vokabular for browser- og serverinferens.',
             downloadUrl: `/api/artifacts/art-${runId}-json/download`,
             createdAt: new Date().toISOString(),
+            status: 'ready',
+            readinessState: 'ready',
           };
           StorageManager.saveArtifact(jsonArtifact, weightsJson);
 
@@ -672,6 +714,8 @@ app.post('/api/training/start', async (req: Request, res: Response) => {
             description: 'Komplett eksportpakke (.zip) med TFLite, SavedModel, C-header, metadata, evalueringsrapport og skript.',
             downloadUrl: `/api/artifacts/art-${runId}-package/download`,
             createdAt: new Date().toISOString(),
+            status: 'ready',
+            readinessState: 'ready',
           };
           StorageManager.saveArtifact(packageArtifact, fullPackageBuffer);
 
@@ -705,7 +749,7 @@ app.post('/api/training/start', async (req: Request, res: Response) => {
   }
 });
 
-app.post('/api/training/cancel', (req: Request, res: Response) => {
+app.post('/api/training/cancel', requireAuth, (req: Request, res: Response) => {
   if (!activeSession) {
     return res.json({ message: 'Ingen aktiv treningsøkt å avbryte' });
   }
@@ -1078,7 +1122,7 @@ app.get('/api/files/content', (req: Request, res: Response) => {
   }
 });
 
-app.post('/api/files/content', (req: Request, res: Response) => {
+app.post('/api/files/content', requireAuth, (req: Request, res: Response) => {
   const { path: filePath, content } = req.body;
   if (!filePath || content === undefined) {
     return res.status(400).json({ error: 'Mangler sti eller innhold' });
@@ -1092,11 +1136,15 @@ app.post('/api/files/content', (req: Request, res: Response) => {
 });
 
 // -------------------------------------------------------------
-// 8. AI Chat (Gemini / Local Ornith Assistant)
+// 8. AI Chat & Multi-Tenant Model Gateway
 // -------------------------------------------------------------
-app.post('/api/ai/chat', async (req: Request, res: Response) => {
+app.get('/api/gateway/tenants', (req: Request, res: Response) => {
+  res.json({ tenants: ModelGateway.listTenants() });
+});
+
+app.post('/api/ai/chat', requireAuth, async (req: Request, res: Response) => {
   try {
-    const { prompt, history, model, thinking, projectId } = req.body;
+    const { prompt, history, model, thinking, projectId, provider, tenantId } = req.body;
     let projectContext: any = undefined;
     if (projectId) {
       const p = StorageManager.getProject(projectId);
@@ -1115,11 +1163,14 @@ app.post('/api/ai/chat', async (req: Request, res: Response) => {
       }
     }
 
-    const response = await askGeminiOrnith({
+    const response = await ModelGateway.dispatchChat({
+      tenantId: tenantId || (req.headers['x-tenant-id'] as string) || 'default',
+      provider,
+      model,
       prompt: prompt || 'Hei Ornith!',
       history: history || [],
-      modelName: model,
-      useThinking: Boolean(thinking),
+      thinking: Boolean(thinking),
+      projectId,
       projectContext,
     });
 

@@ -18,9 +18,11 @@ export type ValidationRuleType =
   | 'column_type'
   | 'text_length'
   | 'word_count'
+  | 'range_limits'
   | 'unique_text'
   | 'label_whitelist'
   | 'norwegian_char_presence'
+  | 'norwegian_char_frequency'
   | 'norwegian_dialect'
   | 'ban_mojibake'
   | 'regex_match';
@@ -39,18 +41,28 @@ export interface DatasetValidationRule {
     expectedType?: 'string' | 'number' | 'boolean';
     disallowEmpty?: boolean;
     disallowWhitespaceOnly?: boolean;
+    maxMissingPercent?: number;
+    allowNull?: boolean;
     minLength?: number;
     maxLength?: number;
     minWords?: number;
     maxWords?: number;
+    minTokens?: number;
+    maxTokens?: number;
+    minValue?: number;
+    maxValue?: number;
     allowedLabels?: string[];
     minNorwegianChars?: number;
+    minNorwegianFrequencyPercent?: number; // e.g. 1.5% of total characters must be æ, ø, å
+    requiredNorwegianCharacters?: ('æ' | 'ø' | 'å' | 'Æ' | 'Ø' | 'Å')[];
     dialectTarget?: 'Bokmål' | 'Nynorsk' | 'any';
     minNorwegianScore?: number;
     regexPattern?: string;
     regexFlags?: string;
     customErrorMessage?: string;
   };
+  firestoreSynced?: boolean;
+  updatedAt?: string;
 }
 
 export interface ProjectValidationConfig {
@@ -58,6 +70,7 @@ export interface ProjectValidationConfig {
   autoCleanWhitespace?: boolean;
   rules: DatasetValidationRule[];
   lastValidatedAt?: string;
+  lastSavedToFirestore?: string;
 }
 
 export interface ValidationErrorDetail {
@@ -89,6 +102,7 @@ export interface ProjectMetadata {
   datasetId?: string;
   lastRunId?: string;
   version: string;
+  ownerId?: string;
   validationConfig?: ProjectValidationConfig;
 }
 
@@ -271,6 +285,9 @@ export interface ModelArtifact {
   description: string;
   downloadUrl: string;
   createdAt: string;
+  status?: 'ready' | 'exporting' | 'pending' | 'failed';
+  readinessState?: 'ready' | 'exporting' | 'stale';
+  checksum?: string;
 }
 
 export interface ExportPackageOptions {
@@ -378,3 +395,26 @@ export interface RuntimeSystemStatus {
   osInfo: string;
   version: string;
 }
+
+export type OAuthProviderType = 'google' | 'github' | 'anonymous' | 'dev-session';
+
+export interface AuthUser {
+  uid: string;
+  email: string | null;
+  displayName: string | null;
+  photoURL: string | null;
+  provider: OAuthProviderType;
+  token?: string;
+  emailVerified?: boolean;
+  tenantId?: string;
+  role?: 'admin' | 'researcher' | 'developer' | 'viewer';
+}
+
+export interface AuthSessionState {
+  isAuthenticated: boolean;
+  isLoading: boolean;
+  user: AuthUser | null;
+  error: string | null;
+  token: string | null;
+}
+

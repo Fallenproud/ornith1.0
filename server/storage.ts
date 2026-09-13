@@ -19,6 +19,8 @@ import {
   FileTreeItem,
 } from '../src/types';
 import { getDefaultProjectValidationConfig } from '../src/lib/validation';
+import { db } from '../src/lib/firebase';
+import { doc, setDoc, deleteDoc } from 'firebase/firestore';
 
 const DATA_DIR = path.resolve(process.cwd(), 'data');
 const PROJECTS_DIR = path.join(DATA_DIR, 'projects');
@@ -41,6 +43,27 @@ export class StorageManager {
 
     // Seed default Norwegian dataset if none exists
     this.seedDefaultDataset();
+    
+    // Sync existing data to Firestore in the background for high-concurrency read operations
+    setTimeout(() => {
+      try {
+        const projects = this.listProjects();
+        projects.forEach(p => {
+          setDoc(doc(db, 'projects', p.id), p).catch(console.error);
+        });
+        const runs = this.listRuns();
+        runs.forEach(r => {
+          setDoc(doc(db, 'runs', r.id), r).catch(console.error);
+        });
+        const datasets = this.listDatasets();
+        datasets.forEach(d => {
+          setDoc(doc(db, 'datasets', d.id), d).catch(console.error);
+        });
+        console.log('[Firestore Sync] Synced initial state to Firestore.');
+      } catch (err) {
+        console.error('[Firestore Sync] Failed to sync initial state:', err);
+      }
+    }, 1000);
   }
 
   // Prevents directory traversal attacks
@@ -81,6 +104,11 @@ export class StorageManager {
     }
     const filePath = path.join(PROJECTS_DIR, `${project.id}.json`);
     fs.writeFileSync(filePath, JSON.stringify(project, null, 2), 'utf-8');
+    
+    // Sync to Firestore
+    setDoc(doc(db, 'projects', project.id), project).catch(err => {
+      console.error(`[Firestore Sync] Failed to sync project ${project.id}:`, err);
+    });
   }
 
   public static getProject(id: string): ProjectMetadata | null {
@@ -103,6 +131,12 @@ export class StorageManager {
     const filePath = path.join(PROJECTS_DIR, `${id}.json`);
     if (fs.existsSync(filePath)) {
       fs.unlinkSync(filePath);
+      
+      // Sync delete to Firestore
+      deleteDoc(doc(db, 'projects', id)).catch(err => {
+        console.error(`[Firestore Sync] Failed to delete project ${id}:`, err);
+      });
+      
       return true;
     }
     return false;
@@ -153,6 +187,11 @@ export class StorageManager {
     this.init();
     const filePath = path.join(RUNS_DIR, `${run.id}.json`);
     fs.writeFileSync(filePath, JSON.stringify(run, null, 2), 'utf-8');
+    
+    // Sync to Firestore for high-concurrency read operations
+    setDoc(doc(db, 'runs', run.id), run).catch(err => {
+      console.error(`[Firestore Sync] Failed to sync run ${run.id}:`, err);
+    });
   }
 
   public static getRun(id: string): TrainingRun | null {

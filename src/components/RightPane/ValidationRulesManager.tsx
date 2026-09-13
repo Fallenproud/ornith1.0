@@ -23,7 +23,20 @@ import {
   Type,
   FileCheck,
   Save,
+  Flame,
+  CloudCheck,
+  Info,
+  Hash,
+  Languages,
+  CheckCircle2,
 } from 'lucide-react';
+import { doc, setDoc } from 'firebase/firestore';
+import {
+  db,
+  handleFirestoreError,
+  OperationType,
+  saveProjectValidationRulesTransactional,
+} from '../../lib/firebase';
 import {
   DatasetValidationRule,
   ProjectMetadata,
@@ -63,6 +76,9 @@ export const ValidationRulesManager: React.FC<ValidationRulesManagerProps> = ({
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [firestoreSavedTime, setFirestoreSavedTime] = useState<string | null>(
+    activeProject?.validationConfig?.lastSavedToFirestore || null
+  );
   const [editingRule, setEditingRule] = useState<DatasetValidationRule | null>(null);
   const [isNewRule, setIsNewRule] = useState(false);
 
@@ -86,6 +102,9 @@ export const ValidationRulesManager: React.FC<ValidationRulesManagerProps> = ({
       setRules(activeProject.validationConfig.rules);
       setStrictMode(!!activeProject.validationConfig.strictMode);
       setAutoCleanWhitespace(activeProject.validationConfig.autoCleanWhitespace !== false);
+      if (activeProject.validationConfig.lastSavedToFirestore) {
+        setFirestoreSavedTime(activeProject.validationConfig.lastSavedToFirestore);
+      }
     }
   }, [activeProject?.id]);
 
@@ -120,19 +139,46 @@ export const ValidationRulesManager: React.FC<ValidationRulesManagerProps> = ({
   const handleSaveToProject = async () => {
     if (!activeProject) return;
     setIsSaving(true);
+    const nowIso = new Date().toISOString();
+
     try {
+      // 1. Persist directly to Firestore Database via concurrency-safe atomic transaction
+      try {
+        const savedConfig = await saveProjectValidationRulesTransactional(activeProject.id, {
+          rules,
+          strictMode,
+          autoCleanWhitespace,
+        });
+        console.log(`[Firestore] Valideringsregler lagret i prosjekt ${activeProject.id}`);
+        setFirestoreSavedTime(savedConfig.lastSavedToFirestore || nowIso);
+      } catch (firestoreErr) {
+        console.warn('[Firestore] Direkte Firestore-skriving ga feil (fortsetter via API):', firestoreErr);
+      }
+
+      // 2. Persist via backend API for local server synchronization
       const res = await API.updateProjectValidationRules(activeProject.id, {
         rules,
         strictMode,
         autoCleanWhitespace,
       });
-      if (onProjectUpdated && res.project) {
-        onProjectUpdated(res.project);
-      }
-      setSaveSuccess(true);
-      setTimeout(() => setSaveSuccess(false), 2500);
 
-      // Re-apply immediately if requested
+      if (onProjectUpdated && res.project) {
+        onProjectUpdated({
+          ...res.project,
+          validationConfig: {
+            ...res.project.validationConfig,
+            rules,
+            strictMode,
+            autoCleanWhitespace,
+            lastSavedToFirestore: nowIso,
+          },
+        });
+      }
+
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 3000);
+
+      // 3. Re-apply immediately to active dataset
       if (onApplyRulesToActiveDataset) {
         onApplyRulesToActiveDataset(rules);
       }
@@ -175,28 +221,42 @@ export const ValidationRulesManager: React.FC<ValidationRulesManagerProps> = ({
       id: `custom-rule-${Date.now().toString(36)}`,
       name: 'Egendefinert regel',
       description: 'Brukerdefinert valideringsregel for TinyML.',
-      type: 'text_length',
+      type: 'range_limits',
       enabled: true,
       severity: 'error',
       params: {
         targetColumn: 'text',
         minLength: 3,
-        maxLength: 180,
-        customErrorMessage: 'Teksten oppfyller ikke den egendefinerte lengderegelen.',
+        maxLength: 200,
+        minWords: 1,
+        maxWords: 35,
+        customErrorMessage: 'Teksten oppfyller ikke den egendefinerte grensen.',
       },
     };
     setEditingRule(newRule);
     setIsNewRule(true);
   };
 
-  const handleSaveEditedRule = (rule: DatasetValidationRule) => {
+  const handleSaveEditedRule = async (rule: DatasetValidationRule) => {
+    let updatedRules: DatasetValidationRule[];
     if (isNewRule) {
-      setRules((prev) => [...prev, rule]);
+      updatedRules = [...rules, rule];
     } else {
-      setRules((prev) => prev.map((r) => (r.id === rule.id ? rule : r)));
+      updatedRules = rules.map((r) => (r.id === rule.id ? rule : r));
     }
+    setRules(updatedRules);
     setEditingRule(null);
     setIsNewRule(false);
+
+    // Auto-sync single rule to Firestore if project exists
+    if (activeProject) {
+      try {
+        const ruleDocRef = doc(db, 'projects', activeProject.id, 'validation_rules', rule.id);
+        await setDoc(ruleDocRef, { ...rule, updatedAt: new Date().toISOString() }, { merge: true });
+      } catch (err) {
+        console.warn('[Firestore] Kunne ikke auto-lagre enkeltregel:', err);
+      }
+    }
   };
 
   const activeRulesCount = rules.filter((r) => r.enabled).length;
@@ -216,12 +276,21 @@ export const ValidationRulesManager: React.FC<ValidationRulesManagerProps> = ({
             <ShieldCheck className="h-5 w-5" />
           </div>
           <div>
-            <h2 className="text-sm font-bold text-white tracking-tight">
-              Datasett Valideringsregler
-            </h2>
+            <div className="flex items-center gap-2">
+              <h2 className="text-sm font-bold text-white tracking-tight">
+                Datasett Valideringsregler
+              </h2>
+              <span className="flex items-center gap-1 rounded bg-[#FF9F0A]/15 px-2 py-0.5 font-mono text-[10px] font-semibold text-[#FF9F0A]">
+                <Flame className="h-3 w-3" />
+                <span>Firestore Synkronisert</span>
+              </span>
+            </div>
             <p className="text-[11px] text-[#A3A3A0]">
               Prosjekt: <span className="font-semibold text-white">{activeProject?.name || 'Standard'}</span> •{' '}
               <span className="text-[#77F23B]">{activeRulesCount} aktive regler</span>
+              {firestoreSavedTime && (
+                <span className="text-[#888]"> • Sist lagret: {new Date(firestoreSavedTime).toLocaleTimeString('nb-NO')}</span>
+              )}
             </p>
           </div>
         </div>
@@ -256,12 +325,12 @@ export const ValidationRulesManager: React.FC<ValidationRulesManagerProps> = ({
             {saveSuccess ? (
               <>
                 <Check className="h-3.5 w-3.5" />
-                <span>Lagret til prosjekt!</span>
+                <span>Lagret til Firestore!</span>
               </>
             ) : (
               <>
                 <Save className="h-3.5 w-3.5" />
-                <span>{isSaving ? 'Lagrer...' : 'Lagre konfigurasjon'}</span>
+                <span>{isSaving ? 'Lagrer til Firestore...' : 'Lagre & Synkroniser'}</span>
               </>
             )}
           </button>
@@ -404,6 +473,24 @@ export const ValidationRulesManager: React.FC<ValidationRulesManagerProps> = ({
 
                   {/* Rule Parameters Summary */}
                   <div className="mt-2.5 flex flex-wrap items-center gap-2 border-t border-[rgba(255,255,255,0.04)] pt-2 text-[11px] text-[#A3A3A0]">
+                    {rule.type === 'missing_values' && (
+                      <span className="font-mono text-[#E0E0DC]">
+                        Mangler: {rule.params.disallowEmpty ? 'Forbyr tom' : 'Tillatt'} • {rule.params.disallowWhitespaceOnly ? 'Forbyr kun tomrom' : ''}
+                        {rule.params.maxMissingPercent != null && ` • Maks feiltoleranse: ${rule.params.maxMissingPercent}%`}
+                      </span>
+                    )}
+                    {rule.type === 'range_limits' && (
+                      <span className="font-mono text-[#E0E0DC]">
+                        Grenser: {rule.params.minLength ?? 1}–{rule.params.maxLength ?? 200} tegn • {rule.params.minWords ?? 1}–{rule.params.maxWords ?? 35} ord
+                        {rule.params.maxTokens ? ` • Maks ${rule.params.maxTokens} tokens` : ''}
+                      </span>
+                    )}
+                    {rule.type === 'norwegian_char_frequency' && (
+                      <span className="font-mono text-[#B25CFF]">
+                        Norsk frekvens: Min {rule.params.minNorwegianFrequencyPercent ?? 1}% tegn • Min {rule.params.minNorwegianChars ?? 1} av (æ, ø, å)
+                        {rule.params.requiredNorwegianCharacters && ` • Påkrevd: [${rule.params.requiredNorwegianCharacters.join(', ')}]`}
+                      </span>
+                    )}
                     {rule.type === 'text_length' && (
                       <span className="font-mono text-[#E0E0DC]">
                         Lengdegrense: {rule.params.minLength || 1} – {rule.params.maxLength || 250} tegn
@@ -434,11 +521,6 @@ export const ValidationRulesManager: React.FC<ValidationRulesManagerProps> = ({
                         Forventer type: {rule.params.expectedType || 'string'}
                       </span>
                     )}
-                    {rule.type === 'missing_values' && (
-                      <span className="font-mono text-[#A3A3A0]">
-                        Forbyr tom streng og tomrom
-                      </span>
-                    )}
                   </div>
                 </div>
               );
@@ -450,80 +532,53 @@ export const ValidationRulesManager: React.FC<ValidationRulesManagerProps> = ({
         <div className="flex flex-col overflow-hidden rounded-xl border border-[rgba(255,255,255,0.06)] bg-[#141414] lg:col-span-5">
           <div className="flex items-center justify-between border-b border-[rgba(255,255,255,0.06)] px-4 py-3 text-xs font-semibold text-white">
             <div className="flex items-center gap-2">
-              <Sparkles className="h-4 w-4 text-[#77F23B]" />
-              <span>Interaktiv Regelsandkasse</span>
+              <Sparkles className="h-4 w-4 text-[#8F2BFF]" />
+              <span>Interaktiv Valideringssandkasse</span>
             </div>
-            <span className="font-mono text-[10px] text-[#A3A3A0]">Live Evaluering</span>
+            <span className="text-[10px] text-[#A3A3A0]">Sanntidstest</span>
           </div>
 
-          <div className="flex-1 space-y-4 overflow-y-auto p-4 custom-scrollbar text-xs">
-            {/* Rule Selector */}
+          <div className="flex-1 space-y-4 overflow-y-auto p-4 custom-scrollbar">
             <div>
-              <label className="block text-[11px] font-medium text-[#A3A3A0]">
+              <label className="block text-xs font-semibold text-[#E0E0DC]">
                 Velg regel som skal testes
               </label>
               <select
-                value={selectedRuleToTest?.id || rules[0]?.id || ''}
+                value={selectedRuleToTest?.id || (rules[0] ? rules[0].id : '')}
                 onChange={(e) => {
-                  const r = rules.find((item) => item.id === e.target.value);
-                  if (r) setSelectedRuleToTest(r);
+                  const found = rules.find((r) => r.id === e.target.value);
+                  setSelectedRuleToTest(found || null);
                 }}
                 className="mt-1 w-full rounded-lg border border-[rgba(255,255,255,0.08)] bg-[#1A1A1A] p-2 text-xs text-white focus:outline-none"
               >
                 {rules.map((r) => (
                   <option key={r.id} value={r.id}>
-                    {r.name} ({r.severity})
+                    {r.name} ({getRuleTypeMeta(r.type).title})
                   </option>
                 ))}
               </select>
             </div>
 
-            {/* Quick Sample Presets */}
             <div>
-              <label className="block text-[11px] font-medium text-[#A3A3A0]">
-                Hurtigeksempler for testing:
-              </label>
-              <div className="mt-1.5 flex flex-wrap gap-1.5">
-                {[
-                  { label: 'Gyldig Bokmål', text: 'Skru på varmekablene på badet', l: 'varme_på' },
-                  { label: 'Med Mojibake', text: 'SlÃ¥ pÃ¥ lyset i stua nÃ¥', l: 'lys_på' },
-                  { label: 'Nynorsk form', text: 'Kva gjer du heime i dag?', l: 'spørsmål' },
-                  { label: 'For lang ytring', text: 'Dette er en altfor lang setning ment for testing av mikrokontroller-bufferen som overskrider maksimale antall tegn for SRAM-minne og dermed skal flagges av valideringsregelen umiddelbart.', l: 'test' },
-                  { label: 'Uten æ, ø, å', text: 'Turn off the lights please', l: 'lys_av' },
-                ].map((sample, idx) => (
-                  <button
-                    key={idx}
-                    type="button"
-                    onClick={() => {
-                      setSandboxText(sample.text);
-                      setSandboxLabel(sample.l);
-                    }}
-                    className="rounded bg-[#20201F] px-2 py-1 text-[10px] text-[#B25CFF] hover:bg-[#2A2A28] hover:text-white"
-                  >
-                    {sample.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Input Text Area */}
-            <div>
-              <label className="block text-[11px] font-medium text-[#A3A3A0]">
-                Testsetning (text)
+              <label className="block text-xs font-semibold text-[#E0E0DC]">
+                Testytring (Norsk tekst)
               </label>
               <textarea
                 rows={3}
                 value={sandboxText}
                 onChange={(e) => setSandboxText(e.target.value)}
+                placeholder="Skriv en setning for å verifisere regelen..."
                 className="mt-1 w-full rounded-lg border border-[rgba(255,255,255,0.08)] bg-[#1A1A1A] p-2.5 font-mono text-xs text-white focus:border-[#8F2BFF] focus:outline-none"
-                placeholder="Skriv inn en setning..."
               />
+              <div className="mt-1 flex items-center justify-between text-[10px] text-[#777]">
+                <span>Lengde: {sandboxText.length} tegn</span>
+                <span>Ord: {sandboxText.trim().split(/\s+/).filter(Boolean).length} ord</span>
+              </div>
             </div>
 
-            {/* Input Label Field */}
             <div>
-              <label className="block text-[11px] font-medium text-[#A3A3A0]">
-                Etikett / Klasse (label)
+              <label className="block text-xs font-semibold text-[#E0E0DC]">
+                Klasse / Etikett
               </label>
               <input
                 type="text"
@@ -536,16 +591,16 @@ export const ValidationRulesManager: React.FC<ValidationRulesManagerProps> = ({
             <button
               onClick={() => handleRunSandboxTest()}
               disabled={isTesting}
-              className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#39D9E6] py-2 text-xs font-bold text-black shadow-md shadow-[#39D9E6]/20 transition-all hover:bg-[#5CE5EE] disabled:opacity-50"
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#8F2BFF] py-2.5 text-xs font-bold text-white shadow-md shadow-[#8F2BFF]/20 transition-all hover:bg-[#A347FF] disabled:opacity-50"
             >
-              <Play className="h-4 w-4 fill-current" />
-              <span>{isTesting ? 'Validerer i sandkasse...' : 'Kjør Valideringstest'}</span>
+              <Play className="h-3.5 w-3.5" />
+              <span>{isTesting ? 'Validerer...' : 'Kjør Valideringstest'}</span>
             </button>
 
-            {/* Test Result Display */}
+            {/* Test Result Output Box */}
             {testResult && (
               <div
-                className={`rounded-xl border p-4 ${
+                className={`rounded-xl border p-3.5 transition-all ${
                   testResult.passed
                     ? 'border-[#77F23B]/30 bg-[#77F23B]/10 text-white'
                     : testResult.hasWarnings
@@ -616,7 +671,7 @@ export const ValidationRulesManager: React.FC<ValidationRulesManagerProps> = ({
 };
 
 // -------------------------------------------------------------
-// Subcomponent: Add / Edit Rule Modal
+// Subcomponent: Custom Validation Rule Editor Modal
 // -------------------------------------------------------------
 interface RuleEditorModalProps {
   rule: DatasetValidationRule;
@@ -632,19 +687,48 @@ const RuleEditorModal: React.FC<RuleEditorModalProps> = ({
   onSave,
 }) => {
   const [formData, setFormData] = useState<DatasetValidationRule>({ ...rule });
+  const [activeConfigTab, setActiveConfigTab] = useState<'constraints' | 'severity' | 'preview'>('constraints');
 
   const handleTypeChange = (newType: ValidationRuleType) => {
     const meta = getRuleTypeMeta(newType);
+    let defaultParams = { ...formData.params };
+
+    if (newType === 'missing_values') {
+      defaultParams = {
+        ...defaultParams,
+        disallowEmpty: true,
+        disallowWhitespaceOnly: true,
+        maxMissingPercent: 0,
+        customErrorMessage: 'Påkrevd verdi mangler eller er tom.',
+      };
+    } else if (newType === 'range_limits') {
+      defaultParams = {
+        ...defaultParams,
+        minLength: 3,
+        maxLength: 200,
+        minWords: 1,
+        maxWords: 35,
+        maxTokens: 50,
+        customErrorMessage: 'Teksten faller utenfor tillatt lengde- eller ordgrense.',
+      };
+    } else if (newType === 'norwegian_char_frequency') {
+      defaultParams = {
+        ...defaultParams,
+        minNorwegianFrequencyPercent: 2.0,
+        minNorwegianChars: 1,
+        dialectTarget: 'Bokmål',
+        requiredNorwegianCharacters: ['æ', 'ø', 'å'],
+        customErrorMessage: 'Teksten oppfyller ikke kravet til norsk tegnfrekvens eller særnorske tegn.',
+      };
+    }
+
     setFormData((prev) => ({
       ...prev,
       type: newType,
       name: prev.name || meta.title,
       description: meta.description,
       severity: meta.defaultSeverity,
-      params: {
-        ...prev.params,
-        customErrorMessage: `Feilet validering: ${meta.title}`,
-      },
+      params: defaultParams,
     }));
   };
 
@@ -658,14 +742,32 @@ const RuleEditorModal: React.FC<RuleEditorModalProps> = ({
     }));
   };
 
+  const toggleRequiredChar = (char: 'æ' | 'ø' | 'å' | 'Æ' | 'Ø' | 'Å') => {
+    const current = formData.params.requiredNorwegianCharacters || [];
+    const updated = current.includes(char)
+      ? current.filter((c) => c !== char)
+      : [...current, char];
+    handleParamChange('requiredNorwegianCharacters', updated);
+  };
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm">
-      <div className="w-full max-w-lg rounded-2xl border border-[rgba(255,255,255,0.08)] bg-[#171716] p-6 shadow-2xl text-xs text-[#F4F4F2]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
+      <div className="w-full max-w-xl rounded-2xl border border-[rgba(255,255,255,0.12)] bg-[#171716] p-6 shadow-2xl text-xs text-[#F4F4F2]">
         <div className="mb-4 flex items-center justify-between border-b border-[rgba(255,255,255,0.06)] pb-3">
-          <h3 className="text-sm font-bold text-white">
-            {isNew ? 'Definer ny valideringsregel' : 'Rediger valideringsregel'}
-          </h3>
-          <button onClick={onClose} className="text-[#888] hover:text-white">
+          <div className="flex items-center gap-2">
+            <div className="rounded-lg bg-[#8F2BFF]/20 p-1.5 text-[#B25CFF]">
+              <Sliders className="h-4 w-4" />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-white">
+                {isNew ? 'Definer ny valideringsregel' : 'Rediger valideringsregel'}
+              </h3>
+              <p className="text-[11px] text-[#A3A3A0]">
+                Persisteres til Firestore og TinyML-kjøretid
+              </p>
+            </div>
+          </div>
+          <button onClick={onClose} className="rounded-lg p-1 text-[#888] hover:bg-[#222] hover:text-white">
             ✕
           </button>
         </div>
@@ -675,40 +777,19 @@ const RuleEditorModal: React.FC<RuleEditorModalProps> = ({
             e.preventDefault();
             onSave(formData);
           }}
-          className="space-y-3.5"
+          className="space-y-4"
         >
-          {/* Rule Name */}
-          <div>
-            <label className="block font-medium text-[#E0E0DC]">Regelnavn</label>
-            <input
-              type="text"
-              required
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              className="mt-1 w-full rounded-lg border border-[rgba(255,255,255,0.08)] bg-[#1F1F1E] p-2 text-white focus:border-[#8F2BFF] focus:outline-none"
-            />
-          </div>
-
-          {/* Rule Type */}
-          <div className="grid grid-cols-2 gap-3">
+          {/* Rule Name & Target Column */}
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
-              <label className="block font-medium text-[#E0E0DC]">Regeltype</label>
-              <select
-                value={formData.type}
-                onChange={(e) => handleTypeChange(e.target.value as ValidationRuleType)}
-                className="mt-1 w-full rounded-lg border border-[rgba(255,255,255,0.08)] bg-[#1F1F1E] p-2 text-white focus:outline-none"
-              >
-                <option value="missing_values">Mangler verdier / Tomme felt</option>
-                <option value="column_type">Kolonnetype-sjekk</option>
-                <option value="text_length">Lengdebegrensning (Tegn)</option>
-                <option value="word_count">Ordtellingsgrenser (Ord)</option>
-                <option value="ban_mojibake">Deteksjon av Mojibake / Feilkoding</option>
-                <option value="norwegian_char_presence">Norske tegn (æ, ø, å)</option>
-                <option value="norwegian_dialect">Dialekt- og språkformskonsistens</option>
-                <option value="unique_text">Duplikatsjekk</option>
-                <option value="label_whitelist">Klasse-hvitliste</option>
-                <option value="regex_match">Regulært uttrykk (Regex)</option>
-              </select>
+              <label className="block font-medium text-[#E0E0DC]">Regelnavn</label>
+              <input
+                type="text"
+                required
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                className="mt-1 w-full rounded-lg border border-[rgba(255,255,255,0.08)] bg-[#1F1F1E] p-2 text-white focus:border-[#8F2BFF] focus:outline-none"
+              />
             </div>
 
             <div>
@@ -718,91 +799,238 @@ const RuleEditorModal: React.FC<RuleEditorModalProps> = ({
                 onChange={(e) => handleParamChange('targetColumn', e.target.value)}
                 className="mt-1 w-full rounded-lg border border-[rgba(255,255,255,0.08)] bg-[#1F1F1E] p-2 text-white focus:outline-none"
               >
-                <option value="text">text (Ytring/Input)</option>
-                <option value="label">label (Etikett/Klasse)</option>
+                <option value="text">text (Ytring / Norsk inndata)</option>
+                <option value="label">label (Klasse / Etikett)</option>
+                <option value="meta">meta (Metadata / Kontekst)</option>
               </select>
             </div>
           </div>
 
-          {/* Dynamic Parameters according to rule type */}
-          {formData.type === 'text_length' && (
-            <div className="grid grid-cols-2 gap-3 rounded-lg bg-[#141414] p-3">
-              <div>
-                <label className="block text-[11px] text-[#A3A3A0]">Minimum tegn</label>
-                <input
-                  type="number"
-                  min={1}
-                  value={formData.params.minLength ?? 3}
-                  onChange={(e) => handleParamChange('minLength', parseInt(e.target.value) || 1)}
-                  className="mt-1 w-full rounded bg-[#222] p-1.5 font-mono text-white"
-                />
+          {/* Rule Type Category Selector */}
+          <div>
+            <label className="block font-medium text-[#E0E0DC]">Regeltype & Begrensning</label>
+            <select
+              value={formData.type}
+              onChange={(e) => handleTypeChange(e.target.value as ValidationRuleType)}
+              className="mt-1 w-full rounded-lg border border-[#8F2BFF]/30 bg-[#1F1F1E] p-2 text-white font-medium focus:outline-none"
+            >
+              <optgroup label="Hovedbegrensninger (Krav)">
+                <option value="missing_values">🚫 Mangler verdier / Tomme felt (Missing Values Constraint)</option>
+                <option value="range_limits">📏 Område- & Grensebegrensninger (Range Limits Constraint)</option>
+                <option value="norwegian_char_frequency">🇳🇴 Norsk tegnfrekvens & ratio (Norwegian Frequency)</option>
+              </optgroup>
+              <optgroup label="Språk og Norsk NLP">
+                <option value="norwegian_char_presence">Norske tegn tilstede (æ, ø, å)</option>
+                <option value="norwegian_dialect">Dialekt- og språkformsjekk (Bokmål / Nynorsk)</option>
+                <option value="ban_mojibake">Deteksjon av Mojibake / Feilkoding</option>
+              </optgroup>
+              <optgroup label="Andre valideringer">
+                <option value="text_length">Enkel tegnlengde</option>
+                <option value="word_count">Enkel ordtelling</option>
+                <option value="unique_text">Duplikatsjekk</option>
+                <option value="label_whitelist">Klasse-hvitliste</option>
+                <option value="column_type">Kolonnetype-sjekk</option>
+                <option value="regex_match">Regulært uttrykk (Regex)</option>
+              </optgroup>
+            </select>
+          </div>
+
+          {/* Dedicated Constraint Sections */}
+          {/* 1. Missing Values Constraint Editor */}
+          {formData.type === 'missing_values' && (
+            <div className="rounded-xl border border-[rgba(255,255,255,0.08)] bg-[#141414] p-3.5 space-y-3">
+              <div className="flex items-center gap-2 text-white font-semibold">
+                <ShieldCheck className="h-4 w-4 text-[#39D9E6]" />
+                <span>Begrensninger for manglende og tomme verdier</span>
               </div>
+              <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                <label className="flex items-center gap-2 rounded-lg bg-[#1F1F1E] p-2 text-xs text-[#CCC] cursor-pointer hover:bg-[#252524]">
+                  <input
+                    type="checkbox"
+                    checked={formData.params.disallowEmpty !== false}
+                    onChange={(e) => handleParamChange('disallowEmpty', e.target.checked)}
+                    className="rounded border-[#444] bg-[#111] text-[#8F2BFF] focus:ring-0"
+                  />
+                  <span>Forby tomme strenger (&quot;&quot;)</span>
+                </label>
+
+                <label className="flex items-center gap-2 rounded-lg bg-[#1F1F1E] p-2 text-xs text-[#CCC] cursor-pointer hover:bg-[#252524]">
+                  <input
+                    type="checkbox"
+                    checked={formData.params.disallowWhitespaceOnly !== false}
+                    onChange={(e) => handleParamChange('disallowWhitespaceOnly', e.target.checked)}
+                    className="rounded border-[#444] bg-[#111] text-[#8F2BFF] focus:ring-0"
+                  />
+                  <span>Forby kun mellomrom (&quot; &quot;)</span>
+                </label>
+              </div>
+
               <div>
-                <label className="block text-[11px] text-[#A3A3A0]">Maksimum tegn</label>
+                <label className="block text-[11px] text-[#A3A3A0]">
+                  Maksimalt tillatt manglende prosentandel i datasettet (0% = strengt påkrevd for alle rader)
+                </label>
+                <div className="mt-1 flex items-center gap-3">
+                  <input
+                    type="range"
+                    min={0}
+                    max={20}
+                    step={1}
+                    value={formData.params.maxMissingPercent ?? 0}
+                    onChange={(e) => handleParamChange('maxMissingPercent', parseInt(e.target.value) || 0)}
+                    className="flex-1 accent-[#8F2BFF]"
+                  />
+                  <span className="w-12 font-mono text-xs font-bold text-white">
+                    {formData.params.maxMissingPercent ?? 0}%
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* 2. Range Limits Constraint Editor */}
+          {formData.type === 'range_limits' && (
+            <div className="rounded-xl border border-[rgba(255,255,255,0.08)] bg-[#141414] p-3.5 space-y-3">
+              <div className="flex items-center gap-2 text-white font-semibold">
+                <Hash className="h-4 w-4 text-[#77F23B]" />
+                <span>Grenser og områdebegrensninger (Tegn, Ord, Buffer)</span>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] text-[#A3A3A0]">Min. tegnlengde</label>
+                  <input
+                    type="number"
+                    min={1}
+                    value={formData.params.minLength ?? 3}
+                    onChange={(e) => handleParamChange('minLength', parseInt(e.target.value) || 1)}
+                    className="mt-1 w-full rounded bg-[#222] p-1.5 font-mono text-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] text-[#A3A3A0]">Maks. tegnlengde</label>
+                  <input
+                    type="number"
+                    min={2}
+                    value={formData.params.maxLength ?? 220}
+                    onChange={(e) => handleParamChange('maxLength', parseInt(e.target.value) || 200)}
+                    className="mt-1 w-full rounded bg-[#222] p-1.5 font-mono text-white"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] text-[#A3A3A0]">Min. ord</label>
+                  <input
+                    type="number"
+                    min={1}
+                    value={formData.params.minWords ?? 1}
+                    onChange={(e) => handleParamChange('minWords', parseInt(e.target.value) || 1)}
+                    className="mt-1 w-full rounded bg-[#222] p-1.5 font-mono text-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] text-[#A3A3A0]">Maks. ord</label>
+                  <input
+                    type="number"
+                    min={1}
+                    value={formData.params.maxWords ?? 35}
+                    onChange={(e) => handleParamChange('maxWords', parseInt(e.target.value) || 35)}
+                    className="mt-1 w-full rounded bg-[#222] p-1.5 font-mono text-white"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[11px] text-[#A3A3A0]">
+                  Maksimalt tillatt estimert token-buffer for mikrokontroller (RAM-sikring)
+                </label>
                 <input
                   type="number"
-                  min={2}
-                  value={formData.params.maxLength ?? 220}
-                  onChange={(e) => handleParamChange('maxLength', parseInt(e.target.value) || 200)}
+                  min={10}
+                  max={512}
+                  value={formData.params.maxTokens ?? 64}
+                  onChange={(e) => handleParamChange('maxTokens', parseInt(e.target.value) || 64)}
                   className="mt-1 w-full rounded bg-[#222] p-1.5 font-mono text-white"
                 />
               </div>
             </div>
           )}
 
-          {formData.type === 'word_count' && (
-            <div className="grid grid-cols-2 gap-3 rounded-lg bg-[#141414] p-3">
-              <div>
-                <label className="block text-[11px] text-[#A3A3A0]">Minimum ord</label>
-                <input
-                  type="number"
-                  min={1}
-                  value={formData.params.minWords ?? 1}
-                  onChange={(e) => handleParamChange('minWords', parseInt(e.target.value) || 1)}
-                  className="mt-1 w-full rounded bg-[#222] p-1.5 font-mono text-white"
-                />
+          {/* 3. Norwegian Character Frequency & Ratio Editor */}
+          {formData.type === 'norwegian_char_frequency' && (
+            <div className="rounded-xl border border-[rgba(255,255,255,0.08)] bg-[#141414] p-3.5 space-y-3">
+              <div className="flex items-center gap-2 text-white font-semibold">
+                <Languages className="h-4 w-4 text-[#B25CFF]" />
+                <span>Norsk språkkonsistens & tegnfrekvens</span>
               </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] text-[#A3A3A0]">Min. frekvens av æ, ø, å (%)</label>
+                  <input
+                    type="number"
+                    step="0.5"
+                    min="0.5"
+                    max="20"
+                    value={formData.params.minNorwegianFrequencyPercent ?? 1.5}
+                    onChange={(e) => handleParamChange('minNorwegianFrequencyPercent', parseFloat(e.target.value) || 1.0)}
+                    className="mt-1 w-full rounded bg-[#222] p-1.5 font-mono text-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] text-[#A3A3A0]">Min. antall særnorske tegn</label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={formData.params.minNorwegianChars ?? 1}
+                    onChange={(e) => handleParamChange('minNorwegianChars', parseInt(e.target.value) || 1)}
+                    className="mt-1 w-full rounded bg-[#222] p-1.5 font-mono text-white"
+                  />
+                </div>
+              </div>
+
               <div>
-                <label className="block text-[11px] text-[#A3A3A0]">Maksimum ord</label>
-                <input
-                  type="number"
-                  min={1}
-                  value={formData.params.maxWords ?? 35}
-                  onChange={(e) => handleParamChange('maxWords', parseInt(e.target.value) || 35)}
-                  className="mt-1 w-full rounded bg-[#222] p-1.5 font-mono text-white"
-                />
+                <label className="block text-[11px] text-[#A3A3A0] mb-1.5">
+                  Spesifikt påkrevde norske tegn i ytringen
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {(['æ', 'ø', 'å', 'Æ', 'Ø', 'Å'] as const).map((ch) => {
+                    const isSelected = (formData.params.requiredNorwegianCharacters || []).includes(ch);
+                    return (
+                      <button
+                        key={ch}
+                        type="button"
+                        onClick={() => toggleRequiredChar(ch)}
+                        className={`h-8 w-8 rounded-lg font-mono text-xs font-bold transition-all ${
+                          isSelected
+                            ? 'bg-[#8F2BFF] text-white shadow-md shadow-[#8F2BFF]/30'
+                            : 'bg-[#222] text-[#888] hover:text-white'
+                        }`}
+                      >
+                        {ch}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[11px] text-[#A3A3A0]">Språkformsmål</label>
+                <select
+                  value={formData.params.dialectTarget || 'Bokmål'}
+                  onChange={(e) => handleParamChange('dialectTarget', e.target.value)}
+                  className="mt-1 w-full rounded bg-[#222] p-1.5 text-xs text-white"
+                >
+                  <option value="Bokmål">Bokmål (flagger Nynorsk-spesifikke markører)</option>
+                  <option value="Nynorsk">Nynorsk (flagger Bokmål-spesifikke markører)</option>
+                  <option value="any">Både Bokmål og Nynorsk tillatt</option>
+                </select>
               </div>
             </div>
           )}
 
-          {formData.type === 'norwegian_dialect' && (
-            <div className="rounded-lg bg-[#141414] p-3">
-              <label className="block text-[11px] text-[#A3A3A0]">Forventet språkform</label>
-              <select
-                value={formData.params.dialectTarget || 'Bokmål'}
-                onChange={(e) => handleParamChange('dialectTarget', e.target.value)}
-                className="mt-1 w-full rounded bg-[#222] p-2 text-white"
-              >
-                <option value="Bokmål">Bokmål (flagger nynorske særord som 'ikkje', 'eg', 'korleis')</option>
-                <option value="Nynorsk">Nynorsk (flagger bokmålsord som 'ikke', 'jeg', 'hvordan')</option>
-              </select>
-            </div>
-          )}
-
-          {formData.type === 'norwegian_char_presence' && (
-            <div className="rounded-lg bg-[#141414] p-3">
-              <label className="block text-[11px] text-[#A3A3A0]">Minst antall særnorske tegn (æ, ø, å)</label>
-              <input
-                type="number"
-                min={1}
-                value={formData.params.minNorwegianChars ?? 1}
-                onChange={(e) => handleParamChange('minNorwegianChars', parseInt(e.target.value) || 1)}
-                className="mt-1 w-full rounded bg-[#222] p-2 font-mono text-white"
-              />
-            </div>
-          )}
-
-          {/* Severity & Error Message */}
+          {/* Severity & State */}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block font-medium text-[#E0E0DC]">Alvorlighetsgrad</label>
@@ -811,7 +1039,7 @@ const RuleEditorModal: React.FC<RuleEditorModalProps> = ({
                 onChange={(e) => setFormData({ ...formData, severity: e.target.value as any })}
                 className="mt-1 w-full rounded-lg border border-[rgba(255,255,255,0.08)] bg-[#1F1F1E] p-2 text-white focus:outline-none"
               >
-                <option value="error">Feil (Gjør raden ugyldig)</option>
+                <option value="error">Feil (Gjør raden ugyldig i TinyML-settet)</option>
                 <option value="warning">Advarsel (Flagges med gul varsel)</option>
               </select>
             </div>
@@ -835,7 +1063,7 @@ const RuleEditorModal: React.FC<RuleEditorModalProps> = ({
               type="text"
               value={formData.params.customErrorMessage || ''}
               onChange={(e) => handleParamChange('customErrorMessage', e.target.value)}
-              placeholder="f.eks. Ytringen overskrider maksimal lengde for mikrokontroller."
+              placeholder="f.eks. Ytringen overskrider maksimal lengde eller mangler norske tegn."
               className="mt-1 w-full rounded-lg border border-[rgba(255,255,255,0.08)] bg-[#1F1F1E] p-2 text-white placeholder-[#555] focus:outline-none"
             />
           </div>
@@ -850,9 +1078,10 @@ const RuleEditorModal: React.FC<RuleEditorModalProps> = ({
             </button>
             <button
               type="submit"
-              className="rounded-lg bg-[#8F2BFF] px-4 py-2 text-xs font-semibold text-white shadow-md shadow-[#8F2BFF]/20 hover:bg-[#A347FF]"
+              className="flex items-center gap-1.5 rounded-lg bg-[#8F2BFF] px-4 py-2 text-xs font-semibold text-white shadow-md shadow-[#8F2BFF]/20 hover:bg-[#A347FF]"
             >
-              Lagre regel
+              <Save className="h-3.5 w-3.5" />
+              <span>Lagre & Persister regel</span>
             </button>
           </div>
         </form>

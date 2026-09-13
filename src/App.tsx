@@ -12,6 +12,7 @@ import { RightPane } from './components/RightPane/RightPane';
 import { SplashLoader } from './components/SplashLoader';
 import { ProjectModal } from './components/ProjectModal';
 import { UploadDatasetModal } from './components/UploadDatasetModal';
+import { AuthModal } from './components/AuthModal';
 import {
   ProjectMetadata,
   DatasetMetadata,
@@ -20,8 +21,21 @@ import {
   RightPaneMode,
   RuntimeSystemStatus,
   TrainingHyperparameters,
+  AuthUser,
 } from './types';
 import { API } from './lib/api';
+import { initAuthListener, getAuthSession, saveAuthSession } from './lib/auth';
+import { testFirebaseConnection, db, handleFirestoreError, OperationType } from './lib/firebase';
+import { runFirestoreMigration } from './lib/migrate';
+import { recordSnapshotPerformance } from './lib/telemetry';
+import { collection, onSnapshot, query, orderBy, limit } from 'firebase/firestore';
+
+let idCounter = 0;
+function generateUniqueId(prefix: string = 'msg'): string {
+  idCounter += 1;
+  const rand = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 10);
+  return `${prefix}-${Date.now()}-${idCounter}-${rand}`;
+}
 
 export default function App() {
   // Boot & system status
@@ -66,33 +80,45 @@ export default function App() {
   // Modals
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [authUser, setAuthUser] = useState<AuthUser | null>(() => getAuthSession());
 
   const containerRef = useRef<HTMLDivElement>(null);
 
   // -------------------------------------------------------------
-  // 1. Initial Load & Hydration
+  // 1. Initial Load & Hydration & Auth Listener
   // -------------------------------------------------------------
   useEffect(() => {
+    // Synchronize initial session token with API client
+    const initialSession = getAuthSession();
+    if (initialSession?.token) {
+      API.setAuthToken(initialSession.token);
+    }
+
+    // Subscribe to auth state changes (Firebase + Dev OAuth)
+    const unsubscribeAuth = initAuthListener((user) => {
+      setAuthUser(user);
+      if (user?.token) {
+        API.setAuthToken(user.token);
+      } else {
+        API.setAuthToken(null);
+      }
+    });
+
     const initData = async () => {
       try {
-        const [status, projs, dsets, runs] = await Promise.all([
+        runFirestoreMigration().catch((err) => {
+          console.warn('[Boot] Migreringssjekk fullført med advarsel:', err);
+        });
+        const [status, dsets] = await Promise.all([
           API.getStatus().catch(() => null),
-          API.listProjects().catch(() => []),
           API.listDatasets().catch(() => []),
-          API.listRuns().catch(() => []),
         ]);
 
         if (status) setSystemStatus(status);
-        if (projs.length > 0) {
-          setProjects(projs);
-          setActiveProject(projs[0]);
-        }
         if (dsets.length > 0) {
           setDatasets(dsets);
           setActiveDataset(dsets[0]);
-        }
-        if (runs.length > 0) {
-          setActiveRun(runs[0]);
         }
       } catch (err) {
         console.error('Initialization error:', err);
@@ -100,6 +126,56 @@ export default function App() {
     };
 
     initData();
+
+    // High-concurrency real-time listeners for scalable metadata with performance telemetry
+    const unsubscribeProjects = onSnapshot(
+      query(collection(db, 'projects'), orderBy('updatedAt', 'desc')),
+      (snapshot) => {
+        const startTime = performance.now();
+        const projs = snapshot.docs.map(doc => doc.data() as ProjectMetadata);
+        setProjects(projs);
+        if (projs.length > 0) {
+          setActiveProject(prev => {
+            if (!prev) return projs[0];
+            const updated = projs.find(p => p.id === prev.id);
+            return updated || projs[0];
+          });
+        }
+        // Record latency, payload size, and burst telemetry
+        recordSnapshotPerformance('projects', snapshot, startTime);
+      },
+      (error) => handleFirestoreError(error, OperationType.LIST, 'projects')
+    );
+
+    const unsubscribeRuns = onSnapshot(
+      query(collection(db, 'runs'), orderBy('createdAt', 'desc')),
+      (snapshot) => {
+        const startTime = performance.now();
+        const runsList = snapshot.docs.map(doc => doc.data() as TrainingRun);
+        // Let the active run state update if the most recent run has changed or completed
+        if (runsList.length > 0) {
+          setActiveRun(prev => {
+            if (!prev) return runsList[0];
+            // If we have an active session in progress, we might still receive updates from SSE.
+            // But if Firestore tells us the latest state of the currently active run, we update it.
+            const updated = runsList.find(r => r.id === prev.id);
+            if (updated && (updated.status !== prev.status || updated.progressPercent !== prev.progressPercent)) {
+              return updated;
+            }
+            return prev;
+          });
+        }
+        // Record latency, payload size, and burst telemetry
+        recordSnapshotPerformance('runs', snapshot, startTime);
+      },
+      (error) => handleFirestoreError(error, OperationType.LIST, 'runs')
+    );
+
+    return () => {
+      unsubscribeAuth();
+      unsubscribeProjects();
+      unsubscribeRuns();
+    };
   }, []);
 
   // -------------------------------------------------------------
@@ -129,7 +205,7 @@ export default function App() {
         setMessages((prev) => [
           ...prev,
           {
-            id: `msg-${Date.now()}`,
+            id: generateUniqueId('run-start'),
             sender: 'system',
             text: `Treningsøkt ${run.id.slice(0, 12)} påbegynt på datasett '${activeDataset?.name || 'Norsk Korpus'}'.`,
             timestamp: new Date().toISOString(),
@@ -167,7 +243,7 @@ export default function App() {
         setMessages((prev) => [
           ...prev,
           {
-            id: `msg-${Date.now()}`,
+            id: generateUniqueId('run-completed'),
             sender: 'model',
             text: `**Trening Fullført!**\n\nModellen er ferdig trent over ${data.run.totalEpochs} epoker med slutt-nøyaktighet på **${(data.run.finalMetrics.accuracy * 100).toFixed(1)}%**.\n\n- Estimert RAM på Arduino/ESP32: **~${data.run.finalMetrics.memoryKb} KB**\n- Selvstendig C-header eksportert: \`ornith_tinyml_model.h\`\n\nDu kan nå teste interaktiv inferens under *Forhåndsvisning* eller inspisere forvekslingsmatrisen under *Evaluering*.`,
             timestamp: new Date().toISOString(),
@@ -190,7 +266,7 @@ export default function App() {
         setMessages((prev) => [
           ...prev,
           {
-            id: `msg-${Date.now()}`,
+            id: generateUniqueId('run-cancelled'),
             sender: 'system',
             text: `Treningsøkt ble avbrutt av bruker.`,
             timestamp: new Date().toISOString(),
@@ -208,7 +284,7 @@ export default function App() {
         setMessages((prev) => [
           ...prev,
           {
-            id: `msg-${Date.now()}`,
+            id: generateUniqueId('run-failed'),
             sender: 'system',
             text: `Trening feilet: ${data.error}`,
             timestamp: new Date().toISOString(),
@@ -263,12 +339,12 @@ export default function App() {
   // -------------------------------------------------------------
   const handleSendMessage = async (text: string, attachments?: File[]) => {
     const userMsg: ChatMessage = {
-      id: `user-${Date.now()}`,
+      id: generateUniqueId('user'),
       sender: 'user',
       text,
       timestamp: new Date().toISOString(),
       attachments: attachments?.map((f, i) => ({
-        id: `att-${Date.now()}-${i}`,
+        id: generateUniqueId(`att-${i}`),
         name: f.name,
         size: f.size,
         type: (f.name.endsWith('.jsonl') || f.name.endsWith('.csv') ? 'dataset' : 'file') as 'dataset' | 'file',
@@ -296,7 +372,7 @@ export default function App() {
       setMessages((prev) => [
         ...prev,
         {
-          id: `model-${Date.now()}`,
+          id: generateUniqueId('model-reply'),
           sender: 'model',
           text: res.text,
           timestamp: new Date().toISOString(),
@@ -307,7 +383,7 @@ export default function App() {
       setMessages((prev) => [
         ...prev,
         {
-          id: `model-${Date.now()}`,
+          id: generateUniqueId('model-err'),
           sender: 'model',
           text: `Beklager, det oppstod en feil: ${err.message || 'Ukjent feil'}`,
           timestamp: new Date().toISOString(),
@@ -388,7 +464,7 @@ export default function App() {
     setMessages((prev) => [
       ...prev,
       {
-        id: `msg-${Date.now()}`,
+        id: generateUniqueId('upload-success'),
         sender: 'system',
         text: `Datasett '${meta.name}' (${meta.rowCount} rader, ${meta.dialect}) importert og validert.`,
         timestamp: new Date().toISOString(),
@@ -422,6 +498,8 @@ export default function App() {
         onSelectModel={setSelectedModel}
         useThinking={useThinking}
         onToggleThinking={() => setUseThinking((prev) => !prev)}
+        authUser={authUser}
+        onOpenAuthModal={() => setIsAuthModalOpen(true)}
       />
 
       {/* Mobile view toggle tabs (hidden on md and larger) */}
@@ -531,6 +609,21 @@ export default function App() {
         onClose={() => setIsUploadModalOpen(false)}
         onUploadSuccess={handleUploadSuccess}
         activeProject={activeProject}
+      />
+
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+        currentUser={authUser}
+        onAuthSuccess={(user) => {
+          setAuthUser(user);
+          saveAuthSession(user);
+          API.setAuthToken(user.token);
+        }}
+        onSignOut={() => {
+          setAuthUser(null);
+          API.setAuthToken(null);
+        }}
       />
     </div>
   );

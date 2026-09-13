@@ -14,7 +14,8 @@ import {
   HardDrive,
   ChevronDown,
 } from 'lucide-react';
-import { ProjectMetadata, RuntimeSystemStatus } from '../types';
+import { ProjectMetadata, RuntimeSystemStatus, AuthUser } from '../types';
+import { UserAuthBadge } from './UserAuthBadge';
 
 interface HeaderProps {
   projects: ProjectMetadata[];
@@ -28,6 +29,8 @@ interface HeaderProps {
   onSelectModel: (model: string) => void;
   useThinking: boolean;
   onToggleThinking: () => void;
+  authUser: AuthUser | null;
+  onOpenAuthModal: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -42,6 +45,8 @@ export const Header: React.FC<HeaderProps> = ({
   onSelectModel,
   useThinking,
   onToggleThinking,
+  authUser,
+  onOpenAuthModal,
 }) => {
   return (
     <header className="flex h-14 shrink-0 items-center justify-between border-b border-[rgba(255,255,255,0.08)] bg-[#111111] px-4">
@@ -150,6 +155,9 @@ export const Header: React.FC<HeaderProps> = ({
         <span className="rounded border border-[rgba(255,255,255,0.08)] bg-[#1A1A1A] px-2 py-1 font-mono text-[11px] font-medium text-[#77F23B]">
           nb-NO
         </span>
+
+        {/* OAuth2 User Authentication Badge */}
+        <UserAuthBadge user={authUser} onOpenAuthModal={onOpenAuthModal} />
 
         {/* Theme Toggle */}
         <button

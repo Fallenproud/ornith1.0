@@ -95,9 +95,9 @@ export const MessageItem: React.FC<MessageItemProps> = ({
           {/* Attached files / datasets */}
           {message.attachments && message.attachments.length > 0 && (
             <div className="mt-2 flex flex-wrap gap-1.5 pt-1.5 border-t border-[rgba(255,255,255,0.06)]">
-              {message.attachments.map((att, idx) => (
+              {message.attachments.map((att) => (
                 <div
-                  key={idx}
+                  key={att.id}
                   className="flex items-center gap-1.5 rounded bg-[#1C1C1A] px-2 py-1 text-[11px] text-[#A3A3A0]"
                 >
                   <Database className="h-3 w-3 text-[#39D9E6]" />

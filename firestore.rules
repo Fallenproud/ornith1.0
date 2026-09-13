@@ -1,0 +1,45 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    match /projects/{projectId} {
+      allow read: if true;
+      allow write: if isSignedIn() || request.auth == null;
+
+      match /validation_rules/{ruleId} {
+        allow read, write: if true;
+      }
+    }
+
+    match /validation_rules/{ruleId} {
+      allow read, write: if true;
+    }
+
+    match /datasets/{datasetId} {
+      allow read: if true;
+      allow write: if isSignedIn() || request.auth == null;
+    }
+
+    match /runs/{runId} {
+      allow read: if true;
+      allow write: if isSignedIn() || request.auth == null;
+    }
+
+    match /conversations/{conversationId}/messages/{messageId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    match /test/{docId} {
+      allow read, write: if true;
+    }
+  }
+}

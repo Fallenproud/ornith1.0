@@ -1,0 +1,112 @@
+{
+  "entities": {
+    "project": {
+      "title": "Project",
+      "description": "A TinyML project workspace metadata for training models on Norwegian corpora",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" },
+        "locale": { "type": "string", "enum": ["nb-NO", "nn-NO", "en-US"] },
+        "targetArchitecture": { "type": "string" },
+        "datasetId": { "type": "string" },
+        "lastRunId": { "type": "string" },
+        "version": { "type": "string" },
+        "ownerId": { "type": "string" }
+      },
+      "required": ["id", "name", "locale", "targetArchitecture"]
+    },
+    "dataset": {
+      "title": "Dataset",
+      "description": "Dataset metadata containing training text and label classes",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "dialect": { "type": "string" },
+        "format": { "type": "string" },
+        "rowCount": { "type": "number" },
+        "classes": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "ownerId": { "type": "string" }
+      },
+      "required": ["id", "name", "rowCount"]
+    },
+    "chatMessage": {
+      "title": "ChatMessage",
+      "description": "Multi-tenant conversation turn across model providers and gateway",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "sender": { "type": "string", "enum": ["user", "ornith", "model", "system", "training"] },
+        "text": { "type": "string" },
+        "timestamp": { "type": "string" },
+        "provider": { "type": "string" },
+        "modelUsed": { "type": "string" },
+        "tenantId": { "type": "string" },
+        "ownerId": { "type": "string" }
+      },
+      "required": ["id", "sender", "text", "timestamp"]
+    },
+    "trainingRun": {
+      "title": "TrainingRun",
+      "description": "TinyML training run metrics",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "projectId": { "type": "string" },
+        "datasetId": { "type": "string" },
+        "status": { "type": "string" },
+        "progressPercent": { "type": "number" },
+        "createdAt": { "type": "string" },
+        "completedAt": { "type": "string" }
+      },
+      "required": ["id", "projectId", "status", "createdAt"]
+    },
+    "validationRule": {
+      "title": "ValidationRule",
+      "description": "Custom TinyML validation rule with constraints for missing values, range limits, and Norwegian character frequency",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "type": { "type": "string" },
+        "enabled": { "type": "boolean" },
+        "severity": { "type": "string" },
+        "params": { "type": "object" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "name", "type", "enabled", "severity"]
+    }
+  },
+  "firestore": {
+    "/projects/{projectId}": {
+      "schema": "project",
+      "description": "TinyML projects collection"
+    },
+    "/projects/{projectId}/validation_rules/{ruleId}": {
+      "schema": "validationRule",
+      "description": "Project-scoped dataset validation rules"
+    },
+    "/validation_rules/{ruleId}": {
+      "schema": "validationRule",
+      "description": "Custom validation rules collection"
+    },
+    "/datasets/{datasetId}": {
+      "schema": "dataset",
+      "description": "TinyML datasets collection"
+    },
+    "/runs/{runId}": {
+      "schema": "trainingRun",
+      "description": "TinyML training run metrics collection"
+    },
+    "/conversations/{conversationId}/messages/{messageId}": {
+      "schema": "chatMessage",
+      "description": "Multi-tenant chat messages log"
+    }
+  }
+}

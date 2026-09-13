@@ -30,11 +30,17 @@ import {
   Sliders,
   ChevronDown,
   ChevronUp,
+  RefreshCw,
+  Clock,
+  AlertCircle,
+  ShieldCheck,
+  Filter,
 } from 'lucide-react';
 import { ModelArtifact, TrainingRun } from '../../types';
 import { API } from '../../lib/api';
 import { formatBytes, formatDateTime } from '../../lib/i18n';
 import { ExportModal } from '../ExportModal';
+import { ModelExportController } from './ModelExportController';
 
 interface ArtifactsModeProps {
   activeRun?: TrainingRun | null;
@@ -46,6 +52,8 @@ export const ArtifactsMode: React.FC<ArtifactsModeProps> = ({ activeRun }) => {
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [expandedSnippet, setExpandedSnippet] = useState<string | null>('tflite');
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState<'all' | 'ready' | 'exporting'>('all');
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
   const fetchArtifacts = async () => {
     setIsLoading(true);
@@ -69,17 +77,42 @@ export const ArtifactsMode: React.FC<ArtifactsModeProps> = ({ activeRun }) => {
     setTimeout(() => setCopiedKey(null), 2000);
   };
 
-  // Group artifacts by category
-  const modelArtifacts = artifacts.filter(
-    (a) => a.fileType === 'tflite' || a.fileType === 'saved-model' || a.fileType === 'c-header' || a.fileType === 'json-weights'
-  );
-  const packageArtifacts = artifacts.filter(
-    (a) => a.fileType === 'zip-package' || a.fileType === 'summary-md' || a.fileType === 'tflite-spec'
-  );
-  const otherArtifacts = artifacts.filter(
-    (a) => !modelArtifacts.includes(a) && !packageArtifacts.includes(a)
-  );
+  const handleDownload = (art: ModelArtifact) => {
+    setDownloadingId(art.id);
+    const link = document.createElement('a');
+    link.href = art.downloadUrl;
+    link.setAttribute('download', art.name);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    setTimeout(() => setDownloadingId(null), 1200);
+  };
 
+  const handleDownloadBundle = (runId: string, format: 'tflite' | 'saved-model' | 'all') => {
+    setDownloadingId(`bundle-${runId}-${format}`);
+    let url = '';
+    let fileName = '';
+    if (format === 'tflite') {
+      url = API.getTfliteWithMetricsBundleUrl(runId);
+      fileName = `ornith_tflite_metrics_bundle_${runId}.zip`;
+    } else if (format === 'saved-model') {
+      url = API.getSavedModelWithMetricsBundleUrl(runId);
+      fileName = `ornith_savedmodel_metrics_bundle_${runId}.zip`;
+    } else {
+      url = API.getExportPackageUrl(runId);
+      fileName = `ornith_complete_package_${runId}.zip`;
+    }
+
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', fileName);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    setTimeout(() => setDownloadingId(null), 1500);
+  };
+
+  // Helper to render format-specific icons
   const getArtifactIcon = (type: ModelArtifact['fileType']) => {
     switch (type) {
       case 'tflite':
@@ -96,40 +129,103 @@ export const ArtifactsMode: React.FC<ArtifactsModeProps> = ({ activeRun }) => {
     }
   };
 
+  // Helper to render format badges
   const getArtifactBadge = (type: ModelArtifact['fileType']) => {
     switch (type) {
       case 'tflite':
         return (
-          <span className="rounded bg-[#39D9E6]/15 px-2 py-0.5 font-mono text-[10px] font-bold text-[#39D9E6]">
-            TensorFlow Lite (.tflite)
+          <span className="inline-flex items-center gap-1 rounded bg-[#39D9E6]/15 border border-[#39D9E6]/30 px-2 py-0.5 font-mono text-[10px] font-bold text-[#39D9E6]">
+            <Cpu className="h-3 w-3" />
+            <span>TensorFlow Lite (.tflite)</span>
           </span>
         );
       case 'saved-model':
         return (
-          <span className="rounded bg-[#8F2BFF]/15 px-2 py-0.5 font-mono text-[10px] font-bold text-[#B25CFF]">
-            TensorFlow SavedModel
+          <span className="inline-flex items-center gap-1 rounded bg-[#8F2BFF]/15 border border-[#8F2BFF]/30 px-2 py-0.5 font-mono text-[10px] font-bold text-[#B25CFF]">
+            <Layers className="h-3 w-3" />
+            <span>TensorFlow SavedModel</span>
           </span>
         );
       case 'c-header':
         return (
-          <span className="rounded bg-[#77F23B]/15 px-2 py-0.5 font-mono text-[10px] font-bold text-[#77F23B]">
-            Embedded C/C++ Header (.h)
+          <span className="inline-flex items-center gap-1 rounded bg-[#77F23B]/15 border border-[#77F23B]/30 px-2 py-0.5 font-mono text-[10px] font-bold text-[#77F23B]">
+            <FileCode className="h-3 w-3" />
+            <span>Embedded C/C++ Header (.h)</span>
           </span>
         );
       case 'zip-package':
         return (
-          <span className="rounded bg-[#FF9F0A]/15 px-2 py-0.5 font-mono text-[10px] font-bold text-[#FF9F0A]">
-            Komplett Eksportpakke (.zip)
+          <span className="inline-flex items-center gap-1 rounded bg-[#FF9F0A]/15 border border-[#FF9F0A]/30 px-2 py-0.5 font-mono text-[10px] font-bold text-[#FF9F0A]">
+            <FolderArchive className="h-3 w-3" />
+            <span>Komplett Eksportpakke (.zip)</span>
           </span>
         );
       default:
         return (
-          <span className="rounded bg-[#222] px-2 py-0.5 font-mono text-[10px] text-[#A3A3A0]">
-            {type}
+          <span className="inline-flex items-center gap-1 rounded bg-[#222] px-2 py-0.5 font-mono text-[10px] text-[#A3A3A0]">
+            <FileJson className="h-3 w-3" />
+            <span>{type}</span>
           </span>
         );
     }
   };
+
+  // Helper to get visual status icon and badge
+  const getReadinessIndicator = (art: ModelArtifact) => {
+    const status = art.status || art.readinessState || 'ready';
+    switch (status) {
+      case 'ready':
+        return {
+          label: 'Klar (Ready)',
+          icon: <CheckCircle2 className="h-3.5 w-3.5 text-[#77F23B]" />,
+          badgeClass: 'border-[#77F23B]/30 bg-[#77F23B]/10 text-[#77F23B]',
+          dotClass: 'bg-[#77F23B]',
+          description: 'Modell ferdig validert og klar for distribusjon',
+        };
+      case 'exporting':
+        return {
+          label: 'Eksporterer (Exporting)',
+          icon: <RefreshCw className="h-3.5 w-3.5 text-[#FF9F0A] animate-spin" />,
+          badgeClass: 'border-[#FF9F0A]/30 bg-[#FF9F0A]/10 text-[#FF9F0A]',
+          dotClass: 'bg-[#FF9F0A] animate-pulse',
+          description: 'Serialiserer og pakker artefakt',
+        };
+      case 'pending':
+      case 'stale':
+        return {
+          label: 'Venter / Arkivert',
+          icon: <Clock className="h-3.5 w-3.5 text-[#A3A3A0]" />,
+          badgeClass: 'border-[#A3A3A0]/30 bg-[#A3A3A0]/10 text-[#A3A3A0]',
+          dotClass: 'bg-[#A3A3A0]',
+          description: 'Tidligere versjon eller venter på kompilering',
+        };
+      case 'failed':
+        return {
+          label: 'Feilet (Failed)',
+          icon: <AlertCircle className="h-3.5 w-3.5 text-[#FF453A]" />,
+          badgeClass: 'border-[#FF453A]/30 bg-[#FF453A]/10 text-[#FF453A]',
+          dotClass: 'bg-[#FF453A]',
+          description: 'Eksport feilet under kompilering',
+        };
+      default:
+        return {
+          label: 'Klar (Ready)',
+          icon: <CheckCircle2 className="h-3.5 w-3.5 text-[#77F23B]" />,
+          badgeClass: 'border-[#77F23B]/30 bg-[#77F23B]/10 text-[#77F23B]',
+          dotClass: 'bg-[#77F23B]',
+          description: 'Klar for distribusjon',
+        };
+    }
+  };
+
+  const readyCount = artifacts.filter((a) => (a.status || a.readinessState || 'ready') === 'ready').length;
+  const exportingCount = artifacts.filter((a) => (a.status || a.readinessState) === 'exporting').length;
+
+  const filteredArtifacts = artifacts.filter((art) => {
+    if (statusFilter === 'all') return true;
+    const st = art.status || art.readinessState || 'ready';
+    return st === statusFilter;
+  });
 
   const tfliteSnippet = `import numpy as np
 import tensorflow.lite as tflite
@@ -206,118 +302,192 @@ print(predictions["probabilities"].numpy())`;
             className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#8F2BFF] to-[#39D9E6] px-4 py-2.5 text-xs font-bold text-white shadow-lg shadow-[#8F2BFF]/20 transition-all hover:opacity-95"
           >
             <FolderArchive className="h-4 w-4" />
-            <span>Eksporter Modellpakke (.ZIP)</span>
+            <span>Avansert Pakkedialog (.ZIP)</span>
           </button>
         </div>
       </div>
 
-      {/* Artifact Formats Summary Bar */}
-      <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <div className="rounded-xl border border-[#39D9E6]/20 bg-[#39D9E6]/5 p-3.5">
-          <div className="flex items-center justify-between">
-            <span className="font-mono text-xs font-bold text-[#39D9E6]">TensorFlow Lite</span>
-            <Cpu className="h-4 w-4 text-[#39D9E6]" />
-          </div>
-          <p className="mt-1 text-[11px] text-[#A3A3A0]">
-            FlatBuffer .tflite for Python, Android og Edge TPU
-          </p>
-        </div>
-
-        <div className="rounded-xl border border-[#8F2BFF]/20 bg-[#8F2BFF]/5 p-3.5">
-          <div className="flex items-center justify-between">
-            <span className="font-mono text-xs font-bold text-[#B25CFF]">SavedModel</span>
-            <Layers className="h-4 w-4 text-[#8F2BFF]" />
-          </div>
-          <p className="mt-1 text-[11px] text-[#A3A3A0]">
-            TF 2.x standard med serving_default og variabler
-          </p>
-        </div>
-
-        <div className="rounded-xl border border-[#77F23B]/20 bg-[#77F23B]/5 p-3.5">
-          <div className="flex items-center justify-between">
-            <span className="font-mono text-xs font-bold text-[#77F23B]">Embedded C-Header</span>
-            <FileCode className="h-4 w-4 text-[#77F23B]" />
-          </div>
-          <p className="mt-1 text-[11px] text-[#A3A3A0]">
-            Arduino / ESP32 med 0 byte heap-allokering
-          </p>
-        </div>
-
-        <div className="rounded-xl border border-[#FF9F0A]/20 bg-[#FF9F0A]/5 p-3.5">
-          <div className="flex items-center justify-between">
-            <span className="font-mono text-xs font-bold text-[#FF9F0A]">Komplett Pakke</span>
-            <FolderArchive className="h-4 w-4 text-[#FF9F0A]" />
-          </div>
-          <p className="mt-1 text-[11px] text-[#A3A3A0]">
-            ZIP med modeller, metadata, evalueringsdata og skript
-          </p>
-        </div>
+      {/* Multi-Format Model Export Controller */}
+      <div className="mb-8">
+        <ModelExportController
+          activeRun={activeRun || null}
+          onOpenFullModal={() => setIsExportModalOpen(true)}
+        />
       </div>
 
       {/* Artifacts List */}
       <div className="mb-8 space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-xs font-bold uppercase tracking-wider text-white">
-            Genererte Filer & Modeller ({artifacts.length})
-          </h2>
-          <button
-            onClick={fetchArtifacts}
-            className="text-[11px] text-[#8F2BFF] hover:underline"
-          >
-            Oppdater liste
-          </button>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <h2 className="text-xs font-bold uppercase tracking-wider text-white">
+              Genererte Filer & Modeller ({artifacts.length})
+            </h2>
+            <div className="flex items-center gap-1.5 ml-2">
+              <span className="flex items-center gap-1 rounded-full bg-[#77F23B]/10 px-2 py-0.5 text-[10px] font-medium text-[#77F23B] border border-[#77F23B]/20">
+                <span className="h-1.5 w-1.5 rounded-full bg-[#77F23B]"></span>
+                {readyCount} Klar
+              </span>
+              {exportingCount > 0 && (
+                <span className="flex items-center gap-1 rounded-full bg-[#FF9F0A]/10 px-2 py-0.5 text-[10px] font-medium text-[#FF9F0A] border border-[#FF9F0A]/20">
+                  <span className="h-1.5 w-1.5 rounded-full bg-[#FF9F0A] animate-pulse"></span>
+                  {exportingCount} Eksporterer
+                </span>
+              )}
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            {/* Filter buttons */}
+            <div className="flex items-center rounded-lg bg-[#181818] p-0.5 border border-[rgba(255,255,255,0.08)]">
+              <button
+                onClick={() => setStatusFilter('all')}
+                className={`rounded-md px-2.5 py-1 text-[11px] font-medium transition-all ${
+                  statusFilter === 'all'
+                    ? 'bg-[#282828] text-white shadow-sm'
+                    : 'text-[#888] hover:text-[#CCC]'
+                }`}
+              >
+                Alle ({artifacts.length})
+              </button>
+              <button
+                onClick={() => setStatusFilter('ready')}
+                className={`flex items-center gap-1 rounded-md px-2.5 py-1 text-[11px] font-medium transition-all ${
+                  statusFilter === 'ready'
+                    ? 'bg-[#77F23B]/20 text-[#77F23B] shadow-sm'
+                    : 'text-[#888] hover:text-[#CCC]'
+                }`}
+              >
+                <CheckCircle2 className="h-3 w-3 text-[#77F23B]" />
+                Klare ({readyCount})
+              </button>
+              {exportingCount > 0 && (
+                <button
+                  onClick={() => setStatusFilter('exporting')}
+                  className={`flex items-center gap-1 rounded-md px-2.5 py-1 text-[11px] font-medium transition-all ${
+                    statusFilter === 'exporting'
+                      ? 'bg-[#FF9F0A]/20 text-[#FF9F0A] shadow-sm'
+                      : 'text-[#888] hover:text-[#CCC]'
+                  }`}
+                >
+                  <RefreshCw className="h-3 w-3 text-[#FF9F0A] animate-spin" />
+                  Eksporterer ({exportingCount})
+                </button>
+              )}
+            </div>
+
+            <button
+              onClick={fetchArtifacts}
+              disabled={isLoading}
+              className="flex items-center gap-1 rounded-lg border border-[rgba(255,255,255,0.08)] bg-[#181818] px-2.5 py-1 text-[11px] text-[#8F2BFF] hover:bg-[#202020] disabled:opacity-50"
+            >
+              <RefreshCw className={`h-3 w-3 ${isLoading ? 'animate-spin' : ''}`} />
+              <span>Oppdater</span>
+            </button>
+          </div>
         </div>
 
-        {artifacts.length > 0 ? (
+        {filteredArtifacts.length > 0 ? (
           <div className="space-y-3">
-            {artifacts.map((art) => (
-              <div
-                key={art.id}
-                className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-[rgba(255,255,255,0.06)] bg-[#141414] p-4 transition-all hover:border-[rgba(255,255,255,0.14)] hover:bg-[#161616]"
-              >
-                <div className="flex items-center gap-3.5">
-                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#1A1A1A] text-white">
-                    {getArtifactIcon(art.fileType)}
-                  </div>
-                  <div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="font-mono text-xs font-bold text-white">{art.name}</span>
-                      {getArtifactBadge(art.fileType)}
+            {filteredArtifacts.map((art) => {
+              const indicator = getReadinessIndicator(art);
+              const isDownloading = downloadingId === art.id;
+
+              return (
+                <div
+                  key={art.id}
+                  className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-[rgba(255,255,255,0.06)] bg-[#141414] p-4 transition-all hover:border-[rgba(255,255,255,0.14)] hover:bg-[#161616]"
+                >
+                  <div className="flex items-center gap-3.5">
+                    <div className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#1A1A1A] text-white border border-[rgba(255,255,255,0.08)]">
+                      {getArtifactIcon(art.fileType)}
+                      {/* Readiness status dot on format icon corner */}
+                      <span
+                        className={`absolute -top-1 -right-1 flex h-3 w-3 items-center justify-center rounded-full border border-[#141414] ${indicator.dotClass}`}
+                        title={indicator.label}
+                      />
                     </div>
-                    <p className="mt-0.5 text-xs text-[#A3A3A0] max-w-xl">{art.description}</p>
-                    <div className="mt-1.5 flex flex-wrap items-center gap-3 text-[10px] text-[#777]">
-                      <span>Størrelse: <strong className="text-[#CCC]">{formatBytes(art.sizeBytes)}</strong></span>
-                      <span>•</span>
-                      <span>Generert: {formatDateTime(art.createdAt)}</span>
-                      {art.runId && (
+                    <div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-mono text-xs font-bold text-white">{art.name}</span>
+                        {getArtifactBadge(art.fileType)}
+                        {/* Visual Readiness state badge with status icon */}
+                        <span
+                          className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold ${indicator.badgeClass}`}
+                          title={indicator.description}
+                        >
+                          {indicator.icon}
+                          <span>{indicator.label}</span>
+                        </span>
+                      </div>
+                      <p className="mt-0.5 text-xs text-[#A3A3A0] max-w-xl">{art.description}</p>
+                      <div className="mt-1.5 flex flex-wrap items-center gap-3 text-[10px] text-[#777]">
+                        <span>Størrelse: <strong className="text-[#CCC]">{formatBytes(art.sizeBytes)}</strong></span>
+                        <span>•</span>
+                        <span>Generert: {formatDateTime(art.createdAt)}</span>
+                        {art.runId && (
+                          <>
+                            <span>•</span>
+                            <span className="font-mono text-[#888]">Økt: {art.runId}</span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2">
+                    {/* Secondary: If it's a trained model artifact with a runId, allow packaging with metrics & metadata */}
+                    {art.runId && (art.fileType === 'tflite' || art.fileType === 'saved-model') && (
+                      <button
+                        onClick={() =>
+                          handleDownloadBundle(
+                            art.runId!,
+                            art.fileType === 'tflite' ? 'tflite' : 'saved-model'
+                          )
+                        }
+                        disabled={downloadingId === `bundle-${art.runId}-${art.fileType}`}
+                        className="flex items-center gap-1.5 rounded-lg border border-[rgba(255,255,255,0.12)] bg-[#191918] px-3 py-2 text-xs font-semibold text-[#A3A3A0] transition-all hover:border-[rgba(255,255,255,0.25)] hover:bg-[#222221] hover:text-white disabled:opacity-60"
+                        title="Pakk modellfilen sammen med metadata.json, MODEL_CARD.md og evaluation_metrics.json i en ZIP"
+                      >
+                        {downloadingId === `bundle-${art.runId}-${art.fileType}` ? (
+                          <RefreshCw className="h-3.5 w-3.5 animate-spin text-[#8F2BFF]" />
+                        ) : (
+                          <Package className="h-3.5 w-3.5 text-[#8F2BFF]" />
+                        )}
+                        <span>Pakk med metrikker (.zip)</span>
+                      </button>
+                    )}
+
+                    {/* Primary: Direct Model File Download Trigger */}
+                    <button
+                      onClick={() => handleDownload(art)}
+                      disabled={isDownloading}
+                      className="flex items-center gap-1.5 rounded-lg bg-[#1F1F1E] border border-[rgba(255,255,255,0.1)] px-3.5 py-2 text-xs font-medium text-white transition-all hover:bg-[#282828] hover:border-[rgba(255,255,255,0.2)] disabled:opacity-60"
+                    >
+                      {isDownloading ? (
                         <>
-                          <span>•</span>
-                          <span className="font-mono text-[#888]">Økt: {art.runId}</span>
+                          <RefreshCw className="h-3.5 w-3.5 text-[#39D9E6] animate-spin" />
+                          <span>Laster ned...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Download className="h-3.5 w-3.5 text-[#39D9E6]" />
+                          <span>Last ned fil</span>
                         </>
                       )}
-                    </div>
+                    </button>
                   </div>
                 </div>
-
-                <div className="flex items-center gap-2">
-                  <a
-                    href={art.downloadUrl}
-                    download
-                    className="flex items-center gap-1.5 rounded-lg bg-[#1F1F1E] border border-[rgba(255,255,255,0.1)] px-3.5 py-2 text-xs font-medium text-white transition-all hover:bg-[#282828] hover:border-[rgba(255,255,255,0.2)]"
-                  >
-                    <Download className="h-3.5 w-3.5 text-[#39D9E6]" />
-                    <span>Last ned</span>
-                  </a>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         ) : (
           <div className="rounded-xl border border-dashed border-[rgba(255,255,255,0.1)] bg-[#121212] p-8 text-center">
             <Package className="mx-auto h-8 w-8 text-[#555] mb-2" />
-            <h3 className="text-xs font-bold text-white">Ingen artefakter generert ennå</h3>
+            <h3 className="text-xs font-bold text-white">Ingen artefakter matcher filteret</h3>
             <p className="mt-1 text-xs text-[#888] max-w-md mx-auto">
-              Start en treningsøkt under <em>Trening</em> for å produsere TensorFlow Lite, SavedModel, C-header og komplett eksportpakke automatisk.
+              {statusFilter === 'exporting'
+                ? 'Ingen modeller eksporteres akkurat nå. Alle tilgjengelige modeller er ferdig kompilert og klare.'
+                : 'Start en treningsøkt under Trening for å produsere TensorFlow Lite, SavedModel, C-header og komplett eksportpakke automatisk.'}
             </p>
           </div>
         )}
