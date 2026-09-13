@@ -28,6 +28,7 @@ import { PreviewMode } from './PreviewMode';
 import { TrainingMode } from './TrainingMode';
 import { EvaluationMode } from './EvaluationMode';
 import { ArtifactsMode } from './ArtifactsMode';
+import { PerformanceTelemetryMonitor } from './PerformanceTelemetryMonitor';
 
 interface RightPaneProps {
   activeMode: RightPaneMode;
@@ -132,6 +133,10 @@ export const RightPane: React.FC<RightPaneProps> = ({
         {activeMode === 'artifacts' && <ArtifactsMode activeRun={activeRun} />}
         {activeMode === 'files' && <FilesMode />}
       </div>
+
+      {/* Persistent Firestore Read Latency & Concurrency Telemetry Monitor */}
+      <PerformanceTelemetryMonitor compact={false} />
     </main>
   );
 };
+

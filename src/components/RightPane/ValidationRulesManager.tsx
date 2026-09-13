@@ -36,6 +36,7 @@ import {
   handleFirestoreError,
   OperationType,
   saveProjectValidationRulesTransactional,
+  updateValidationRule,
 } from '../../lib/firebase';
 import {
   DatasetValidationRule,
@@ -248,16 +249,68 @@ export const ValidationRulesManager: React.FC<ValidationRulesManagerProps> = ({
     setEditingRule(null);
     setIsNewRule(false);
 
-    // Auto-sync single rule to Firestore if project exists
+    // Persist single rule directly to Firestore using updateValidationRule
     if (activeProject) {
       try {
-        const ruleDocRef = doc(db, 'projects', activeProject.id, 'validation_rules', rule.id);
-        await setDoc(ruleDocRef, { ...rule, updatedAt: new Date().toISOString() }, { merge: true });
+        await updateValidationRule(activeProject.id, rule);
+        console.log(`[Firestore] updateValidationRule fullført for ${rule.id}`);
       } catch (err) {
         console.warn('[Firestore] Kunne ikke auto-lagre enkeltregel:', err);
       }
     }
   };
+
+  // Dedicated constraint update handler using updateValidationRule
+  const handleQuickConstraintUpdate = async (
+    ruleType: ValidationRuleType,
+    paramUpdates: Partial<DatasetValidationRule['params']>
+  ) => {
+    const existingIndex = rules.findIndex((r) => r.type === ruleType);
+    let targetRule: DatasetValidationRule;
+
+    if (existingIndex >= 0) {
+      targetRule = {
+        ...rules[existingIndex],
+        enabled: true,
+        params: {
+          ...rules[existingIndex].params,
+          ...paramUpdates,
+        },
+      };
+    } else {
+      targetRule = {
+        id: `rule-${ruleType}-${Date.now().toString(36)}`,
+        name: getRuleTypeMeta(ruleType).title,
+        description: getRuleTypeMeta(ruleType).description,
+        type: ruleType,
+        enabled: true,
+        severity: 'error',
+        params: {
+          targetColumn: 'text',
+          ...paramUpdates,
+        },
+      };
+
+    }
+
+    const nextRules = existingIndex >= 0
+      ? rules.map((r, i) => (i === existingIndex ? targetRule : r))
+      : [...rules, targetRule];
+
+    setRules(nextRules);
+
+    if (activeProject) {
+      try {
+        await updateValidationRule(activeProject.id, targetRule);
+        setFirestoreSavedTime(new Date().toISOString());
+        setSaveSuccess(true);
+        setTimeout(() => setSaveSuccess(false), 2500);
+      } catch (e) {
+        console.error('Failed to update validation rule in Firestore:', e);
+      }
+    }
+  };
+
 
   const activeRulesCount = rules.filter((r) => r.enabled).length;
 
@@ -381,10 +434,154 @@ export const ValidationRulesManager: React.FC<ValidationRulesManagerProps> = ({
 
       {/* Content Area: Two-column layout (Rules list on left, Live Sandbox on right) */}
       <div className="grid flex-1 grid-cols-1 gap-6 overflow-hidden p-6 lg:grid-cols-12">
-        {/* Rules List (Left 7 Cols) */}
+        {/* Rules List & Constraint Form (Left 7 Cols) */}
         <div className="flex flex-col overflow-hidden rounded-xl border border-[rgba(255,255,255,0.06)] bg-[#141414] lg:col-span-7">
+          {/* Quick Constraint Configurator Form */}
+          <div className="border-b border-[rgba(255,255,255,0.06)] bg-[#171716] p-4">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <Sliders className="h-4 w-4 text-[#8F2BFF]" />
+                <h3 className="text-xs font-bold text-white uppercase tracking-wider">
+                  Begrensningsskjema (Hurtigkonfigurasjon)
+                </h3>
+              </div>
+              <span className="font-mono text-[10px] text-[#39D9E6]">
+                Synkroniseres til Firestore med updateValidationRule()
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              {/* 1. Missing Values Constraints */}
+              <div className="rounded-lg border border-[rgba(255,255,255,0.05)] bg-[#1F1F1E] p-3 text-xs">
+                <div className="flex items-center gap-1.5 font-bold text-white mb-2">
+                  <AlertCircle className="h-3.5 w-3.5 text-[#FF453A]" />
+                  <span>Manglende verdier</span>
+                </div>
+                <div className="space-y-2 text-[11px] text-[#A3A3A0]">
+                  <label className="flex items-center gap-2 cursor-pointer hover:text-white">
+                    <input
+                      type="checkbox"
+                      checked={rules.some(r => r.type === 'missing_values' && r.enabled && r.params.disallowEmpty)}
+                      onChange={(e) => {
+                        handleQuickConstraintUpdate('missing_values', {
+                          disallowEmpty: e.target.checked,
+                          disallowWhitespaceOnly: true,
+                          targetColumn: 'text',
+                        });
+                      }}
+                      className="rounded border-[#444] bg-[#2A2A28] text-[#8F2BFF] focus:ring-0"
+                    />
+                    <span>Forby tomme strenger</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer hover:text-white">
+                    <input
+                      type="checkbox"
+                      checked={rules.some(r => r.type === 'missing_values' && r.enabled && r.params.disallowWhitespaceOnly)}
+                      onChange={(e) => {
+                        handleQuickConstraintUpdate('missing_values', {
+                          disallowWhitespaceOnly: e.target.checked,
+                          targetColumn: 'text',
+                        });
+                      }}
+                      className="rounded border-[#444] bg-[#2A2A28] text-[#8F2BFF] focus:ring-0"
+                    />
+                    <span>Forby kun mellomrom</span>
+                  </label>
+                </div>
+              </div>
+
+              {/* 2. Range Limits Constraints */}
+              <div className="rounded-lg border border-[rgba(255,255,255,0.05)] bg-[#1F1F1E] p-3 text-xs">
+                <div className="flex items-center gap-1.5 font-bold text-white mb-2">
+                  <Hash className="h-3.5 w-3.5 text-[#39D9E6]" />
+                  <span>Grenser (Lengde & Ord)</span>
+                </div>
+                <div className="space-y-2 text-[11px] text-[#A3A3A0]">
+                  <div className="flex items-center justify-between gap-1">
+                    <span>Maks tegn:</span>
+                    <input
+                      type="number"
+                      min={10}
+                      max={1000}
+                      defaultValue={rules.find(r => r.type === 'range_limits')?.params.maxLength || 200}
+                      onBlur={(e) => {
+                        const val = parseInt(e.target.value, 10) || 200;
+                        handleQuickConstraintUpdate('range_limits', {
+                          maxLength: val,
+                          minLength: 2,
+                          targetColumn: 'text',
+                        });
+                      }}
+                      className="w-16 rounded bg-[#2A2A28] px-1.5 py-0.5 font-mono text-[11px] text-white border border-[rgba(255,255,255,0.08)]"
+                    />
+                  </div>
+                  <div className="flex items-center justify-between gap-1">
+                    <span>Maks ord:</span>
+                    <input
+                      type="number"
+                      min={1}
+                      max={150}
+                      defaultValue={rules.find(r => r.type === 'range_limits')?.params.maxWords || 35}
+                      onBlur={(e) => {
+                        const val = parseInt(e.target.value, 10) || 35;
+                        handleQuickConstraintUpdate('range_limits', {
+                          maxWords: val,
+                          minWords: 1,
+                          targetColumn: 'text',
+                        });
+                      }}
+                      className="w-16 rounded bg-[#2A2A28] px-1.5 py-0.5 font-mono text-[11px] text-white border border-[rgba(255,255,255,0.08)]"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* 3. Norwegian Character Frequency & Dialect Authenticity */}
+              <div className="rounded-lg border border-[rgba(255,255,255,0.05)] bg-[#1F1F1E] p-3 text-xs">
+                <div className="flex items-center gap-1.5 font-bold text-white mb-2">
+                  <Languages className="h-3.5 w-3.5 text-[#77F23B]" />
+                  <span>Norsk tegnfrekvens</span>
+                </div>
+                <div className="space-y-2 text-[11px] text-[#A3A3A0]">
+                  <label className="flex items-center gap-2 cursor-pointer hover:text-white">
+                    <input
+                      type="checkbox"
+                      checked={rules.some(r => r.type === 'norwegian_char_frequency' && r.enabled)}
+                      onChange={(e) => {
+                        const rule = rules.find(r => r.type === 'norwegian_char_frequency');
+                        if (rule) {
+                          handleToggleRule(rule.id);
+                        } else {
+                          handleQuickConstraintUpdate('norwegian_char_frequency', {
+                            minNorwegianFrequencyPercent: 1.0,
+                            minNorwegianChars: 1,
+                            targetColumn: 'text',
+                          });
+                        }
+                      }}
+                      className="rounded border-[#444] bg-[#2A2A28] text-[#8F2BFF] focus:ring-0"
+                    />
+                    <span>Krev æ, ø, å frekvens</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer hover:text-white">
+                    <input
+                      type="checkbox"
+                      checked={rules.some(r => r.type === 'norwegian_vocabulary' && r.enabled)}
+                      onChange={() => {
+                        const rule = rules.find(r => r.type === 'norwegian_vocabulary');
+                        if (rule) handleToggleRule(rule.id);
+                      }}
+                      className="rounded border-[#444] bg-[#2A2A28] text-[#8F2BFF] focus:ring-0"
+                    />
+                    <span>Forby svenske tegn (ä, ö)</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <div className="flex items-center justify-between border-b border-[rgba(255,255,255,0.06)] px-4 py-3 text-xs font-semibold text-white">
-            <span>Konfigurerte Regler ({filteredRules.length})</span>
+            <span>Alle Konfigurerte Regler ({filteredRules.length})</span>
             <span className="text-[11px] font-normal text-[#A3A3A0]">
               Klikk feil/advarsel for å veksle alvorlighetsgrad
             </span>

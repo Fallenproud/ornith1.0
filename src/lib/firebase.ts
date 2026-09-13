@@ -309,6 +309,97 @@ export async function deleteDatasetValidationRuleTransactional(
 }
 
 /**
+ * Concurrency-safe helper to update a single dataset validation rule in Firestore.
+ * Persists the rule atomically to the project document and subcollection.
+ */
+export async function updateValidationRule(
+  projectId: string,
+  rule: DatasetValidationRule
+): Promise<DatasetValidationRule> {
+  return await saveDatasetValidationRuleTransactional(projectId, rule);
+}
+
+/**
+ * Mapped export readiness details for Firestore snapshot data.
+ */
+export interface MappedExportStatus {
+  tflite: 'ready' | 'exporting' | 'pending' | 'failed';
+  savedModel: 'ready' | 'exporting' | 'pending' | 'failed';
+  cHeader: 'ready' | 'exporting' | 'pending' | 'failed';
+  overall: 'ready' | 'exporting' | 'pending' | 'failed';
+  readyForDownload: boolean;
+  tfliteSizeBytes?: number;
+  savedModelSizeBytes?: number;
+  lastExportedAt?: string;
+  indicatorColor: 'green' | 'yellow' | 'red' | 'gray';
+  statusText: string;
+}
+
+/**
+ * Maps model export and readiness status from Firestore snapshot data (e.g. TrainingRun, Artifact, or Project).
+ * Allows UI components to render instant green/yellow/red indicators for .tflite, SavedModel, and C-headers.
+ */
+export function mapExportStatusFromSnapshot(snapshotData: any): MappedExportStatus {
+  if (!snapshotData) {
+    return {
+      tflite: 'pending',
+      savedModel: 'pending',
+      cHeader: 'pending',
+      overall: 'pending',
+      readyForDownload: false,
+      indicatorColor: 'gray',
+      statusText: 'Ingen eksportdata funnet',
+    };
+  }
+
+  // Check if snapshotData is a direct TrainingRun or has export status fields
+  const runStatus = snapshotData.status || snapshotData.trainingStatus;
+  const isRunning = runStatus === 'running' || snapshotData.isTraining === true;
+  const isCompleted = runStatus === 'completed' || snapshotData.completed === true || snapshotData.accuracy !== undefined;
+  const isFailed = runStatus === 'failed' || snapshotData.error !== undefined;
+
+  // Granular artifact exports state if provided
+  const exportsInfo = snapshotData.exports || snapshotData.artifacts || {};
+  const tfliteState: 'ready' | 'exporting' | 'pending' | 'failed' =
+    exportsInfo.tflite?.status || (isCompleted ? 'ready' : isRunning ? 'exporting' : isFailed ? 'failed' : 'pending');
+  const savedModelState: 'ready' | 'exporting' | 'pending' | 'failed' =
+    exportsInfo.savedModel?.status || (isCompleted ? 'ready' : isRunning ? 'exporting' : isFailed ? 'failed' : 'pending');
+  const cHeaderState: 'ready' | 'exporting' | 'pending' | 'failed' =
+    exportsInfo.cHeader?.status || (isCompleted ? 'ready' : isRunning ? 'exporting' : isFailed ? 'failed' : 'pending');
+
+  let overall: 'ready' | 'exporting' | 'pending' | 'failed' = 'pending';
+  let indicatorColor: 'green' | 'yellow' | 'red' | 'gray' = 'gray';
+  let statusText = 'Venter på treningsfullføring';
+
+  if (tfliteState === 'ready' || savedModelState === 'ready' || isCompleted) {
+    overall = 'ready';
+    indicatorColor = 'green';
+    statusText = 'TensorFlow-modeller er klare for nedlasting (.tflite / SavedModel)';
+  } else if (isRunning || tfliteState === 'exporting' || savedModelState === 'exporting') {
+    overall = 'exporting';
+    indicatorColor = 'yellow';
+    statusText = 'Kompilerer og serialiserer TensorFlow-artefakter...';
+  } else if (isFailed || tfliteState === 'failed') {
+    overall = 'failed';
+    indicatorColor = 'red';
+    statusText = 'Eksport eller trening feilet';
+  }
+
+  return {
+    tflite: tfliteState,
+    savedModel: savedModelState,
+    cHeader: cHeaderState,
+    overall,
+    readyForDownload: overall === 'ready',
+    tfliteSizeBytes: exportsInfo.tflite?.sizeBytes || snapshotData.tfliteSizeBytes,
+    savedModelSizeBytes: exportsInfo.savedModel?.sizeBytes || snapshotData.savedModelSizeBytes,
+    lastExportedAt: snapshotData.updatedAt || snapshotData.completedAt || snapshotData.createdAt,
+    indicatorColor,
+    statusText,
+  };
+}
+
+/**
  * Real-time subscription listener for a project's validation configuration.
  * Returns an unsubscribe function to clean up listeners on unmount.
  */
@@ -334,4 +425,6 @@ export function subscribeToProjectValidationRules(
     }
   );
 }
+
+
 

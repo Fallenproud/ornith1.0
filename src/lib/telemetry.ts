@@ -25,8 +25,11 @@ export interface ScalabilityMetricsSummary {
   totalSnapshots: number;
   totalDocsRead: number;
   avgDurationMs: number;
+  minDurationMs: number;
+  maxDurationMs: number;
   highConcurrencyEvents: number;
   currentReadsPerSec: number;
+  cacheHitRatio: number;
   lastEventTimestamp: number | null;
 }
 
@@ -36,6 +39,41 @@ const MAX_BUFFER_SIZE = 200;
 const CONCURRENCY_WINDOW_MS = 5000;
 const HIGH_CONCURRENCY_THRESHOLD_EVENTS = 3; // >= 3 snapshot bursts in 5s
 const HIGH_DOC_VOLUME_THRESHOLD = 50;
+
+type TelemetryListener = (summary: ScalabilityMetricsSummary, recentEntries: SnapshotTelemetryEntry[]) => void;
+const listeners: Set<TelemetryListener> = new Set();
+
+function notifyListeners() {
+  if (listeners.size === 0) return;
+  const summary = getScalabilityMetrics();
+  const recent = telemetryBuffer.slice(-20);
+  listeners.forEach((fn) => {
+    try {
+      fn(summary, recent);
+    } catch (e) {
+      console.error('Error in telemetry listener:', e);
+    }
+  });
+}
+
+/**
+ * Subscribes to live performance telemetry updates.
+ */
+export function subscribeToTelemetry(callback: TelemetryListener): () => void {
+  listeners.add(callback);
+  // Send immediate initial state
+  callback(getScalabilityMetrics(), telemetryBuffer.slice(-20));
+  return () => {
+    listeners.delete(callback);
+  };
+}
+
+/**
+ * Returns recent telemetry entry buffer.
+ */
+export function getTelemetryHistory(limitCount: number = 30): SnapshotTelemetryEntry[] {
+  return telemetryBuffer.slice(-limitCount);
+}
 
 /**
  * Records performance telemetry for a Firestore onSnapshot read event.
@@ -97,6 +135,9 @@ export function recordSnapshotPerformance(
     telemetryBuffer.shift();
   }
 
+  // Notify live UI monitors
+  notifyListeners();
+
   // High-concurrency logging & telemetry report
   if (isHighConcurrencyBurst) {
     console.warn(
@@ -134,8 +175,11 @@ export function getScalabilityMetrics(): ScalabilityMetricsSummary {
       totalSnapshots: 0,
       totalDocsRead: 0,
       avgDurationMs: 0,
+      minDurationMs: 0,
+      maxDurationMs: 0,
       highConcurrencyEvents: 0,
       currentReadsPerSec: 0,
+      cacheHitRatio: 0,
       lastEventTimestamp: null,
     };
   }
@@ -143,7 +187,12 @@ export function getScalabilityMetrics(): ScalabilityMetricsSummary {
   const totalSnapshots = telemetryBuffer.length;
   const totalDocsRead = telemetryBuffer.reduce((acc, curr) => acc + curr.docCount, 0);
   const totalDuration = telemetryBuffer.reduce((acc, curr) => acc + curr.processingDurationMs, 0);
+  const durations = telemetryBuffer.map(e => e.processingDurationMs);
+  const minDurationMs = Math.min(...durations);
+  const maxDurationMs = Math.max(...durations);
   const highConcurrencyEvents = telemetryBuffer.filter(e => e.isHighConcurrencyBurst).length;
+  const cachedCount = telemetryBuffer.filter(e => e.fromCache).length;
+  const cacheHitRatio = Math.round((cachedCount / totalSnapshots) * 100);
 
   const now = Date.now();
   const windowStart = now - 5000;
@@ -155,8 +204,12 @@ export function getScalabilityMetrics(): ScalabilityMetricsSummary {
     totalSnapshots,
     totalDocsRead,
     avgDurationMs: Math.round((totalDuration / totalSnapshots) * 100) / 100,
+    minDurationMs: Math.round(minDurationMs * 100) / 100,
+    maxDurationMs: Math.round(maxDurationMs * 100) / 100,
     highConcurrencyEvents,
     currentReadsPerSec,
+    cacheHitRatio,
     lastEventTimestamp: telemetryBuffer[telemetryBuffer.length - 1].timestamp,
   };
 }
+

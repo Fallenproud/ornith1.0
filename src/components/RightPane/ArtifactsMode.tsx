@@ -41,6 +41,8 @@ import { API } from '../../lib/api';
 import { formatBytes, formatDateTime } from '../../lib/i18n';
 import { ExportModal } from '../ExportModal';
 import { ModelExportController } from './ModelExportController';
+import { packageAndDownloadArtifactZip } from '../../lib/zipPackaging';
+import { mapExportStatusFromSnapshot } from '../../lib/firebase';
 
 interface ArtifactsModeProps {
   activeRun?: TrainingRun | null;
@@ -88,29 +90,33 @@ export const ArtifactsMode: React.FC<ArtifactsModeProps> = ({ activeRun }) => {
     setTimeout(() => setDownloadingId(null), 1200);
   };
 
-  const handleDownloadBundle = (runId: string, format: 'tflite' | 'saved-model' | 'all') => {
-    setDownloadingId(`bundle-${runId}-${format}`);
-    let url = '';
-    let fileName = '';
-    if (format === 'tflite') {
-      url = API.getTfliteWithMetricsBundleUrl(runId);
-      fileName = `ornith_tflite_metrics_bundle_${runId}.zip`;
-    } else if (format === 'saved-model') {
-      url = API.getSavedModelWithMetricsBundleUrl(runId);
-      fileName = `ornith_savedmodel_metrics_bundle_${runId}.zip`;
-    } else {
-      url = API.getExportPackageUrl(runId);
-      fileName = `ornith_complete_package_${runId}.zip`;
+  const handleDownloadBundle = async (art: ModelArtifact) => {
+    setDownloadingId(`bundle-${art.id}`);
+    try {
+      await packageAndDownloadArtifactZip({
+        artifact: art,
+        run: activeRun,
+        includeInferenceScripts: true,
+      });
+    } catch (err) {
+      console.error('Failed to generate ZIP package bundle:', err);
+      // Fallback to server bundle endpoint
+      if (art.runId) {
+        const url = art.fileType === 'tflite'
+          ? API.getTfliteWithMetricsBundleUrl(art.runId)
+          : API.getSavedModelWithMetricsBundleUrl(art.runId);
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', `${art.name}_bundle.zip`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
+    } finally {
+      setTimeout(() => setDownloadingId(null), 800);
     }
-
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', fileName);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    setTimeout(() => setDownloadingId(null), 1500);
   };
+
 
   // Helper to render format-specific icons
   const getArtifactIcon = (type: ModelArtifact['fileType']) => {
@@ -170,9 +176,11 @@ export const ArtifactsMode: React.FC<ArtifactsModeProps> = ({ activeRun }) => {
     }
   };
 
-  // Helper to get visual status icon and badge
+  // Helper to get visual status icon and badge using Firestore export status mapping
   const getReadinessIndicator = (art: ModelArtifact) => {
-    const status = art.status || art.readinessState || 'ready';
+    const mapped = mapExportStatusFromSnapshot(art);
+    const status = art.status || art.readinessState || (mapped.overall === 'pending' ? 'ready' : mapped.overall);
+
     switch (status) {
       case 'ready':
         return {
@@ -180,7 +188,7 @@ export const ArtifactsMode: React.FC<ArtifactsModeProps> = ({ activeRun }) => {
           icon: <CheckCircle2 className="h-3.5 w-3.5 text-[#77F23B]" />,
           badgeClass: 'border-[#77F23B]/30 bg-[#77F23B]/10 text-[#77F23B]',
           dotClass: 'bg-[#77F23B]',
-          description: 'Modell ferdig validert og klar for distribusjon',
+          description: 'Modell ferdig serialisert, validert og klar for nedlasting',
         };
       case 'exporting':
         return {
@@ -217,6 +225,7 @@ export const ArtifactsMode: React.FC<ArtifactsModeProps> = ({ activeRun }) => {
         };
     }
   };
+
 
   const readyCount = artifacts.filter((a) => (a.status || a.readinessState || 'ready') === 'ready').length;
   const exportingCount = artifacts.filter((a) => (a.status || a.readinessState) === 'exporting').length;
@@ -435,27 +444,21 @@ print(predictions["probabilities"].numpy())`;
                   </div>
 
                   <div className="flex flex-wrap items-center gap-2">
-                    {/* Secondary: If it's a trained model artifact with a runId, allow packaging with metrics & metadata */}
-                    {art.runId && (art.fileType === 'tflite' || art.fileType === 'saved-model') && (
-                      <button
-                        onClick={() =>
-                          handleDownloadBundle(
-                            art.runId!,
-                            art.fileType === 'tflite' ? 'tflite' : 'saved-model'
-                          )
-                        }
-                        disabled={downloadingId === `bundle-${art.runId}-${art.fileType}`}
-                        className="flex items-center gap-1.5 rounded-lg border border-[rgba(255,255,255,0.12)] bg-[#191918] px-3 py-2 text-xs font-semibold text-[#A3A3A0] transition-all hover:border-[rgba(255,255,255,0.25)] hover:bg-[#222221] hover:text-white disabled:opacity-60"
-                        title="Pakk modellfilen sammen med metadata.json, MODEL_CARD.md og evaluation_metrics.json i en ZIP"
-                      >
-                        {downloadingId === `bundle-${art.runId}-${art.fileType}` ? (
-                          <RefreshCw className="h-3.5 w-3.5 animate-spin text-[#8F2BFF]" />
-                        ) : (
-                          <Package className="h-3.5 w-3.5 text-[#8F2BFF]" />
-                        )}
-                        <span>Pakk med metrikker (.zip)</span>
-                      </button>
-                    )}
+                    {/* Secondary: Package model artifact with metadata, CSV logs & quickstarts */}
+                    <button
+                      onClick={() => handleDownloadBundle(art)}
+                      disabled={downloadingId === `bundle-${art.id}`}
+                      className="flex items-center gap-1.5 rounded-lg border border-[rgba(255,255,255,0.12)] bg-[#191918] px-3 py-2 text-xs font-semibold text-[#A3A3A0] transition-all hover:border-[rgba(255,255,255,0.25)] hover:bg-[#222221] hover:text-white disabled:opacity-60"
+                      title="Pakk modellfilen sammen med training_metadata.json, evaluation_logs.csv, MODEL_CARD.md og inferensskript i en ZIP"
+                    >
+                      {downloadingId === `bundle-${art.id}` ? (
+                        <RefreshCw className="h-3.5 w-3.5 animate-spin text-[#8F2BFF]" />
+                      ) : (
+                        <FolderArchive className="h-3.5 w-3.5 text-[#8F2BFF]" />
+                      )}
+                      <span>Pakk ZIP (.zip)</span>
+                    </button>
+
 
                     {/* Primary: Direct Model File Download Trigger */}
                     <button
