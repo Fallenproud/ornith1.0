@@ -1,0 +1,602 @@
+[
+  {
+    "id": "rec-1",
+    "text": "Slå på lyset i stuen",
+    "label": "lys_på",
+    "isValid": true,
+    "errors": [],
+    "languageDetected": "nb-NO",
+    "norwegianCharCount": {
+      "ae": 0,
+      "oe": 0,
+      "aa": 2,
+      "total": 2
+    },
+    "validationFailures": []
+  },
+  {
+    "id": "rec-2",
+    "text": "Tenn taklampen over spisebordet",
+    "label": "lys_på",
+    "isValid": true,
+    "errors": [],
+    "languageDetected": "nb-NO",
+    "norwegianCharCount": {
+      "ae": 0,
+      "oe": 0,
+      "aa": 0,
+      "total": 0
+    },
+    "validationFailures": []
+  },
+  {
+    "id": "rec-3",
+    "text": "Kan du skru på nattbordslampen?",
+    "label": "lys_på",
+    "isValid": true,
+    "errors": [],
+    "languageDetected": "nb-NO",
+    "norwegianCharCount": {
+      "ae": 0,
+      "oe": 0,
+      "aa": 1,
+      "total": 1
+    },
+    "validationFailures": []
+  },
+  {
+    "id": "rec-4",
+    "text": "Sett på leselyset i gangen",
+    "label": "lys_på",
+    "isValid": true,
+    "errors": [],
+    "languageDetected": "nb-NO",
+    "norwegianCharCount": {
+      "ae": 0,
+      "oe": 0,
+      "aa": 1,
+      "total": 1
+    },
+    "validationFailures": []
+  },
+  {
+    "id": "rec-5",
+    "text": "Slå på stemningsbelysningen nå",
+    "label": "lys_på",
+    "isValid": true,
+    "errors": [],
+    "languageDetected": "nb-NO",
+    "norwegianCharCount": {
+      "ae": 0,
+      "oe": 0,
+      "aa": 3,
+      "total": 3
+    },
+    "validationFailures": []
+  },
+  {
+    "id": "rec-6",
+    "text": "Skru på flomlyset utenfor garasjen",
+    "label": "lys_på",
+    "isValid": true,
+    "errors": [],
+    "languageDetected": "nb-NO",
+    "norwegianCharCount": {
+      "ae": 0,
+      "oe": 0,
+      "aa": 1,
+      "total": 1
+    },
+    "validationFailures": []
+  },
+  {
+    "id": "rec-7",
+    "text": "Tenn lyset på badet, takk",
+    "label": "lys_på",
+    "isValid": true,
+    "errors": [],
+    "languageDetected": "nb-NO",
+    "norwegianCharCount": {
+      "ae": 0,
+      "oe": 0,
+      "aa": 1,
+      "total": 1
+    },
+    "validationFailures": []
+  },
+  {
+    "id": "rec-8",
+    "text": "Slukk alle lysene på kjøkkenet",
+    "label": "lys_av",
+    "isValid": true,
+    "errors": [],
+    "languageDetected": "nb-NO",
+    "norwegianCharCount": {
+      "ae": 0,
+      "oe": 1,
+      "aa": 1,
+      "total": 2
+    },
+    "validationFailures": []
+  },
+  {
+    "id": "rec-9",
+    "text": "Skru av lyset i hele huset",
+    "label": "lys_av",
+    "isValid": true,
+    "errors": [],
+    "languageDetected": "nb-NO",
+    "norwegianCharCount": {
+      "ae": 0,
+      "oe": 0,
+      "aa": 0,
+      "total": 0
+    },
+    "validationFailures": []
+  },
+  {
+    "id": "rec-10",
+    "text": "Slå av lampen på barnerommet",
+    "label": "lys_av",
+    "isValid": true,
+    "errors": [],
+    "languageDetected": "nb-NO",
+    "norwegianCharCount": {
+      "ae": 0,
+      "oe": 0,
+      "aa": 2,
+      "total": 2
+    },
+    "validationFailures": []
+  },
+  {
+    "id": "rec-11",
+    "text": "Mørklegg stuen umiddelbart",
+    "label": "lys_av",
+    "isValid": true,
+    "errors": [],
+    "languageDetected": "nb-NO",
+    "norwegianCharCount": {
+      "ae": 0,
+      "oe": 1,
+      "aa": 0,
+      "total": 1
+    },
+    "validationFailures": []
+  },
+  {
+    "id": "rec-12",
+    "text": "Slukk utelampene for natten",
+    "label": "lys_av",
+    "isValid": true,
+    "errors": [],
+    "languageDetected": "nb-NO",
+    "norwegianCharCount": {
+      "ae": 0,
+      "oe": 0,
+      "aa": 0,
+      "total": 0
+    },
+    "validationFailures": []
+  },
+  {
+    "id": "rec-13",
+    "text": "Lukk garasjeporten med en gang",
+    "label": "garasje_lukk",
+    "isValid": true,
+    "errors": [],
+    "languageDetected": "nb-NO",
+    "norwegianCharCount": {
+      "ae": 0,
+      "oe": 0,
+      "aa": 0,
+      "total": 0
+    },
+    "validationFailures": []
+  },
+  {
+    "id": "rec-14",
+    "text": "Steng porten til garasjen nå",
+    "label": "garasje_lukk",
+    "isValid": true,
+    "errors": [],
+    "languageDetected": "nb-NO",
+    "norwegianCharCount": {
+      "ae": 0,
+      "oe": 0,
+      "aa": 1,
+      "total": 1
+    },
+    "validationFailures": []
+  },
+  {
+    "id": "rec-15",
+    "text": "Sjekk og lukk igjen garasjedøren",
+    "label": "garasje_lukk",
+    "isValid": true,
+    "errors": [],
+    "languageDetected": "nb-NO",
+    "norwegianCharCount": {
+      "ae": 0,
+      "oe": 1,
+      "aa": 0,
+      "total": 1
+    },
+    "validationFailures": []
+  },
+  {
+    "id": "rec-16",
+    "text": "Porten må låses og lukkes straks",
+    "label": "garasje_lukk",
+    "isValid": true,
+    "errors": [],
+    "languageDetected": "nb-NO",
+    "norwegianCharCount": {
+      "ae": 0,
+      "oe": 0,
+      "aa": 2,
+      "total": 2
+    },
+    "validationFailures": []
+  },
+  {
+    "id": "rec-17",
+    "text": "Lås garasjen før vi drar",
+    "label": "garasje_lukk",
+    "isValid": true,
+    "errors": [],
+    "languageDetected": "nb-NO",
+    "norwegianCharCount": {
+      "ae": 0,
+      "oe": 1,
+      "aa": 1,
+      "total": 2
+    },
+    "validationFailures": []
+  },
+  {
+    "id": "rec-18",
+    "text": "Åpne garasjeporten, jeg kommer kjørende",
+    "label": "garasje_åpne",
+    "isValid": true,
+    "errors": [],
+    "languageDetected": "nb-NO",
+    "norwegianCharCount": {
+      "ae": 0,
+      "oe": 1,
+      "aa": 1,
+      "total": 2
+    },
+    "validationFailures": []
+  },
+  {
+    "id": "rec-19",
+    "text": "Kjør opp porten til garasjen",
+    "label": "garasje_åpne",
+    "isValid": true,
+    "errors": [],
+    "languageDetected": "nb-NO",
+    "norwegianCharCount": {
+      "ae": 0,
+      "oe": 1,
+      "aa": 0,
+      "total": 1
+    },
+    "validationFailures": []
+  },
+  {
+    "id": "rec-20",
+    "text": "Lås opp og åpne garasjen",
+    "label": "garasje_åpne",
+    "isValid": true,
+    "errors": [],
+    "languageDetected": "nb-NO",
+    "norwegianCharCount": {
+      "ae": 0,
+      "oe": 0,
+      "aa": 2,
+      "total": 2
+    },
+    "validationFailures": []
+  },
+  {
+    "id": "rec-21",
+    "text": "Hva er temperaturen ute nå?",
+    "label": "temp_sjekk",
+    "isValid": true,
+    "errors": [],
+    "languageDetected": "nb-NO",
+    "norwegianCharCount": {
+      "ae": 0,
+      "oe": 0,
+      "aa": 1,
+      "total": 1
+    },
+    "validationFailures": []
+  },
+  {
+    "id": "rec-22",
+    "text": "Hvor mange grader er det på soverommet?",
+    "label": "temp_sjekk",
+    "isValid": true,
+    "errors": [],
+    "languageDetected": "nb-NO",
+    "norwegianCharCount": {
+      "ae": 0,
+      "oe": 0,
+      "aa": 1,
+      "total": 1
+    },
+    "validationFailures": []
+  },
+  {
+    "id": "rec-23",
+    "text": "Er det kaldt ute i dag tidlig?",
+    "label": "temp_sjekk",
+    "isValid": true,
+    "errors": [],
+    "languageDetected": "nb-NO",
+    "norwegianCharCount": {
+      "ae": 0,
+      "oe": 0,
+      "aa": 0,
+      "total": 0
+    },
+    "validationFailures": []
+  },
+  {
+    "id": "rec-24",
+    "text": "Vis meg gjeldende innetemperatur",
+    "label": "temp_sjekk",
+    "isValid": true,
+    "errors": [],
+    "languageDetected": "nb-NO",
+    "norwegianCharCount": {
+      "ae": 0,
+      "oe": 0,
+      "aa": 0,
+      "total": 0
+    },
+    "validationFailures": []
+  },
+  {
+    "id": "rec-25",
+    "text": "Hvor varmt er det i kjellerstuen?",
+    "label": "temp_sjekk",
+    "isValid": true,
+    "errors": [],
+    "languageDetected": "nb-NO",
+    "norwegianCharCount": {
+      "ae": 0,
+      "oe": 0,
+      "aa": 0,
+      "total": 0
+    },
+    "validationFailures": []
+  },
+  {
+    "id": "rec-26",
+    "text": "Skru opp varmepumpen til 22 grader",
+    "label": "varme_opp",
+    "isValid": true,
+    "errors": [],
+    "languageDetected": "nb-NO",
+    "norwegianCharCount": {
+      "ae": 0,
+      "oe": 0,
+      "aa": 0,
+      "total": 0
+    },
+    "validationFailures": []
+  },
+  {
+    "id": "rec-27",
+    "text": "Øk varmen på stueovnen",
+    "label": "varme_opp",
+    "isValid": true,
+    "errors": [],
+    "languageDetected": "nb-NO",
+    "norwegianCharCount": {
+      "ae": 0,
+      "oe": 1,
+      "aa": 1,
+      "total": 2
+    },
+    "validationFailures": []
+  },
+  {
+    "id": "rec-28",
+    "text": "Det er altfor kjølig her, varm opp huset",
+    "label": "varme_opp",
+    "isValid": true,
+    "errors": [],
+    "languageDetected": "nb-NO",
+    "norwegianCharCount": {
+      "ae": 0,
+      "oe": 1,
+      "aa": 0,
+      "total": 1
+    },
+    "validationFailures": []
+  },
+  {
+    "id": "rec-29",
+    "text": "Skru ned termostaten til 19 grader",
+    "label": "varme_ned",
+    "isValid": true,
+    "errors": [],
+    "languageDetected": "nb-NO",
+    "norwegianCharCount": {
+      "ae": 0,
+      "oe": 0,
+      "aa": 0,
+      "total": 0
+    },
+    "validationFailures": []
+  },
+  {
+    "id": "rec-30",
+    "text": "Senk temperaturen for kvelden",
+    "label": "varme_ned",
+    "isValid": true,
+    "errors": [],
+    "languageDetected": "nb-NO",
+    "norwegianCharCount": {
+      "ae": 0,
+      "oe": 0,
+      "aa": 0,
+      "total": 0
+    },
+    "validationFailures": []
+  },
+  {
+    "id": "rec-31",
+    "text": "Slå av panelovnene om natten",
+    "label": "varme_ned",
+    "isValid": true,
+    "errors": [],
+    "languageDetected": "nb-NO",
+    "norwegianCharCount": {
+      "ae": 0,
+      "oe": 0,
+      "aa": 1,
+      "total": 1
+    },
+    "validationFailures": []
+  },
+  {
+    "id": "rec-32",
+    "text": "Vannet i kjelleren lekker, send alarm!",
+    "label": "sikkerhetsalarm",
+    "isValid": true,
+    "errors": [],
+    "languageDetected": "nb-NO",
+    "norwegianCharCount": {
+      "ae": 0,
+      "oe": 0,
+      "aa": 0,
+      "total": 0
+    },
+    "validationFailures": []
+  },
+  {
+    "id": "rec-33",
+    "text": "Røykvarsleren på loftet piper",
+    "label": "sikkerhetsalarm",
+    "isValid": true,
+    "errors": [],
+    "languageDetected": "nb-NO",
+    "norwegianCharCount": {
+      "ae": 0,
+      "oe": 1,
+      "aa": 1,
+      "total": 2
+    },
+    "validationFailures": []
+  },
+  {
+    "id": "rec-34",
+    "text": "Det er bevegelse i hagen på baksiden",
+    "label": "sikkerhetsalarm",
+    "isValid": true,
+    "errors": [],
+    "languageDetected": "nb-NO",
+    "norwegianCharCount": {
+      "ae": 0,
+      "oe": 0,
+      "aa": 1,
+      "total": 1
+    },
+    "validationFailures": []
+  },
+  {
+    "id": "rec-35",
+    "text": "Aktiver innbruddsalarmen for hele boligen",
+    "label": "sikkerhetsalarm",
+    "isValid": true,
+    "errors": [],
+    "languageDetected": "nb-NO",
+    "norwegianCharCount": {
+      "ae": 0,
+      "oe": 0,
+      "aa": 0,
+      "total": 0
+    },
+    "validationFailures": []
+  },
+  {
+    "id": "rec-36",
+    "text": "Slå av alarmen og tast inn koden",
+    "label": "sikkerhetsalarm",
+    "isValid": true,
+    "errors": [],
+    "languageDetected": "nb-NO",
+    "norwegianCharCount": {
+      "ae": 0,
+      "oe": 0,
+      "aa": 1,
+      "total": 1
+    },
+    "validationFailures": []
+  },
+  {
+    "id": "rec-37",
+    "text": "Spill litt beroligende musikk på høyttaleren",
+    "label": "musikk_kontroll",
+    "isValid": true,
+    "errors": [],
+    "languageDetected": "nb-NO",
+    "norwegianCharCount": {
+      "ae": 0,
+      "oe": 1,
+      "aa": 1,
+      "total": 2
+    },
+    "validationFailures": []
+  },
+  {
+    "id": "rec-38",
+    "text": "Sett på radio P1 i kjøkkenet",
+    "label": "musikk_kontroll",
+    "isValid": true,
+    "errors": [],
+    "languageDetected": "nb-NO",
+    "norwegianCharCount": {
+      "ae": 0,
+      "oe": 1,
+      "aa": 1,
+      "total": 2
+    },
+    "validationFailures": []
+  },
+  {
+    "id": "rec-39",
+    "text": "Stopp avspillingen og demp lyden",
+    "label": "musikk_kontroll",
+    "isValid": true,
+    "errors": [],
+    "languageDetected": "nb-NO",
+    "norwegianCharCount": {
+      "ae": 0,
+      "oe": 0,
+      "aa": 0,
+      "total": 0
+    },
+    "validationFailures": []
+  },
+  {
+    "id": "rec-40",
+    "text": "Hopp over til neste sang i spillelisten",
+    "label": "musikk_kontroll",
+    "isValid": true,
+    "errors": [],
+    "languageDetected": "nb-NO",
+    "norwegianCharCount": {
+      "ae": 0,
+      "oe": 0,
+      "aa": 0,
+      "total": 0
+    },
+    "validationFailures": []
+  }
+]

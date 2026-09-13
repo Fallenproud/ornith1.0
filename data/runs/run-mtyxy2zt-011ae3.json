@@ -1,0 +1,62 @@
+{
+  "id": "run-mtyxy2zt-011ae3",
+  "projectId": "norwegian-voice-iot",
+  "datasetId": "norwegian-iot-smart-home",
+  "datasetFingerprint": "905aef803d142abc",
+  "datasetVersion": "1.0",
+  "createdAt": "2026-09-12T22:12:45.353Z",
+  "status": "running",
+  "progressPercent": 20,
+  "currentEpoch": 1,
+  "totalEpochs": 5,
+  "hyperparameters": {
+    "epochs": 5,
+    "batchSize": 8,
+    "learningRate": 0.05,
+    "optimizer": "adam",
+    "seed": 42,
+    "earlyStoppingPatience": 5
+  },
+  "preprocessing": {
+    "lowercase": true,
+    "normalizeNorwegianChars": true,
+    "stripPunctuation": true,
+    "stripNumbers": false,
+    "maxVocabSize": 256,
+    "maxSequenceLength": 32,
+    "tokenizationStrategy": "word-ngram",
+    "padToken": "<PAD>",
+    "unkToken": "<UNK>"
+  },
+  "modelConfig": {
+    "type": "tinyml-dense",
+    "embeddingDim": 32,
+    "hiddenUnits": [
+      32
+    ],
+    "dropoutRate": 0.1,
+    "activation": "relu",
+    "targetDevice": "arduino-nano-ble",
+    "quantization": "int8"
+  },
+  "history": [
+    {
+      "epoch": 1,
+      "loss": 2.1051,
+      "accuracy": 0.1071,
+      "valLoss": 3.1935,
+      "valAccuracy": 0,
+      "durationMs": 38,
+      "learningRate": 0.05
+    }
+  ],
+  "checkpointPaths": [],
+  "logLines": [
+    "[22:12:45] Initialiserer ORNITH TinyML treningsøkt run-mtyxy2zt-011ae3...",
+    "[22:12:45] Laster datasett 'Norsk Smart-Hjem IoT Stemmekommandoer' (40 eksempler)...",
+    "[22:12:45] Behandler norske spesialtegn: æ, ø, å og sammensatte n-grammer...",
+    "[22:12:45] Data oppdelt: 28 trening, 6 validering, 6 test.",
+    "[22:12:45] Vokabular størrelse: 256 ord/bigrammer. Klasser: garasje_lukk, garasje_åpne, lys_av, lys_på, musikk_kontroll, sikkerhetsalarm, temp_sjekk, varme_ned, varme_opp.",
+    "[22:12:45] Epoke 1/5 — tap: 2.1051 | nøyaktighet: 10.7% | val_tap: 3.1935 | val_nøyaktighet: 0.0%"
+  ]
+}

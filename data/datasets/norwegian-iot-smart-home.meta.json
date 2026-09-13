@@ -1,0 +1,64 @@
+{
+  "id": "norwegian-iot-smart-home",
+  "name": "Norsk Smart-Hjem IoT Stemmekommandoer",
+  "filename": "norwegian_iot_smart_home.jsonl",
+  "format": "jsonl",
+  "sizeBytes": 7437,
+  "rowCount": 40,
+  "createdAt": "2026-09-12T22:08:21.355Z",
+  "fingerprint": "905aef803d142abc",
+  "license": "Creative Commons CC-BY-4.0 (Ornith Open Norwegian Fixture)",
+  "source": "Nordisk Språkteknologi & TinyML IoT Korpus",
+  "dialect": "Bokmål",
+  "consent": true,
+  "validation": {
+    "totalRows": 40,
+    "validRows": 40,
+    "invalidRows": 0,
+    "warningRows": 0,
+    "duplicateRows": 0,
+    "detectedColumns": [
+      "text",
+      "label"
+    ],
+    "inferredInputCol": "text",
+    "inferredLabelCol": "label",
+    "classDistribution": {
+      "lys_på": 7,
+      "lys_av": 5,
+      "garasje_lukk": 5,
+      "garasje_åpne": 3,
+      "temp_sjekk": 5,
+      "varme_opp": 3,
+      "varme_ned": 3,
+      "sikkerhetsalarm": 5,
+      "musikk_kontroll": 4
+    },
+    "norwegianScore": 1,
+    "uniqueWords": 112,
+    "vocabSample": [
+      "lys",
+      "varme",
+      "garasje",
+      "slukk",
+      "temperatur",
+      "sikkerhet"
+    ],
+    "charDistribution": {
+      "ae": 0,
+      "oe": 11,
+      "aa": 28,
+      "capitalizedNorwegian": 2
+    },
+    "ruleFailures": [],
+    "mojibakeCount": 0,
+    "rulesAppliedCount": 8
+  },
+  "splitConfig": {
+    "trainPercent": 70,
+    "valPercent": 15,
+    "testPercent": 15,
+    "randomSeed": 42,
+    "shuffle": true
+  }
+}

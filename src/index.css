@@ -1,0 +1,78 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    --font-mono: 'JetBrains Mono', 'IBM Plex Mono', monospace;
+    --font-metric: 'IBM Plex Mono', monospace;
+
+    /* Dark Mode Defaults */
+    --bg-app: #090909;
+    --surface-1: #111111;
+    --surface-2: #181818;
+    --surface-3: #222222;
+    --border-subtle: rgba(255, 255, 255, 0.08);
+    --border-strong: rgba(255, 255, 255, 0.16);
+    --text-primary: #F4F4F2;
+    --text-secondary: #A3A3A0;
+    --text-muted: #6B6B67;
+    --accent-purple: #8F2BFF;
+    --accent-purple-light: #B25CFF;
+    --accent-purple-glow: rgba(143, 43, 255, 0.25);
+    --accent-green: #77F23B;
+    --accent-green-glow: rgba(119, 242, 59, 0.2);
+    --accent-cyan: #39D9E6;
+    --accent-red: #FF4D5E;
+  }
+
+  .theme-light {
+    --bg-app: #F6F6F4;
+    --surface-1: #FFFFFF;
+    --surface-2: #ECECE9;
+    --surface-3: #E1E1DC;
+    --border-subtle: rgba(0, 0, 0, 0.08);
+    --border-strong: rgba(0, 0, 0, 0.16);
+    --text-primary: #141413;
+    --text-secondary: #5E5E5A;
+    --text-muted: #8E8E88;
+    --accent-purple: #791FE0;
+    --accent-purple-light: #9434F5;
+    --accent-purple-glow: rgba(121, 31, 224, 0.15);
+    --accent-green: #2EA804;
+    --accent-green-glow: rgba(46, 168, 4, 0.15);
+    --accent-cyan: #0E9BA8;
+    --accent-red: #E63946;
+  }
+
+  body {
+    font-family: var(--font-sans);
+  }
+
+  code, pre, .font-mono {
+    font-family: var(--font-mono);
+  }
+
+  .font-metric {
+    font-family: var(--font-metric);
+  }
+}
+
+/* Custom technical scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(120, 120, 120, 0.25);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(120, 120, 120, 0.45);
+}
+

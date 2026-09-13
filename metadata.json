@@ -1,0 +1,6 @@
+{
+  "name": "ULTIMATE ORNITH 1.0",
+  "description": "Local-first TinyML training workspace with Norwegian language specialization, interactive AI assistant, real training telemetry, dataset management, and edge deployment.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
