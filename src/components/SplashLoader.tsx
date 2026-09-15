@@ -2,9 +2,9 @@
  * ULTIMATE ORNITH 1.0 — Boot Sequence & System Health Loader
  */
 
-import React, { useEffect, useState } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
-import { Cpu, Database, HardDrive, Sparkles, CheckCircle2 } from 'lucide-react';
+import React, { useEffect, useState } from "react";
+import { motion, AnimatePresence } from "motion/react";
+import { Cpu, Database, HardDrive, Sparkles, CheckCircle2 } from "lucide-react";
 
 interface SplashLoaderProps {
   onComplete: () => void;
@@ -12,13 +12,32 @@ interface SplashLoaderProps {
 }
 
 const STAGES = [
-  { id: 'backend', label: 'Verifiserer lokal Node/FastAPI-kjerne og minnegrenser', icon: Cpu },
-  { id: 'storage', label: 'Sjekker JSON/JSONL-filsystem og datasettintegritet', icon: HardDrive },
-  { id: 'tinyml', label: 'Initialiserer TinyML nevralmatrisemotor (Dense + Softmax)', icon: Database },
-  { id: 'nlp', label: 'Laster norsk språkstøtte (Bokmål / Nynorsk, æ/ø/å, n-gram)', icon: Sparkles },
+  {
+    id: "backend",
+    label: "Verifiserer lokal Node/FastAPI-kjerne og minnegrenser",
+    icon: Cpu,
+  },
+  {
+    id: "storage",
+    label: "Sjekker JSON/JSONL-filsystem og datasettintegritet",
+    icon: HardDrive,
+  },
+  {
+    id: "tinyml",
+    label: "Initialiserer TinyML nevralmatrisemotor (Dense + Softmax)",
+    icon: Database,
+  },
+  {
+    id: "nlp",
+    label: "Laster norsk språkstøtte (Bokmål / Nynorsk, æ/ø/å, n-gram)",
+    icon: Sparkles,
+  },
 ];
 
-export const SplashLoader: React.FC<SplashLoaderProps> = ({ onComplete, systemStatus }) => {
+export const SplashLoader: React.FC<SplashLoaderProps> = ({
+  onComplete,
+  systemStatus,
+}) => {
   const [currentStageIdx, setCurrentStageIdx] = useState(0);
 
   useEffect(() => {
@@ -60,7 +79,9 @@ export const SplashLoader: React.FC<SplashLoaderProps> = ({ onComplete, systemSt
                   v1.0
                 </span>
               </div>
-              <p className="text-xs text-[#A3A3A0]">Lokal TinyML Treningsarbeidsflate</p>
+              <p className="text-xs text-[#A3A3A0]">
+                Lokal TinyML Treningsarbeidsflate
+              </p>
             </div>
           </div>
           <span className="rounded-full border border-[rgba(255,255,255,0.1)] bg-[#1A1A1A] px-2.5 py-1 font-mono text-[11px] text-[#77F23B]">
@@ -79,8 +100,10 @@ export const SplashLoader: React.FC<SplashLoaderProps> = ({ onComplete, systemSt
           <div className="h-1.5 w-full overflow-hidden rounded-full bg-[#1F1F1E]">
             <motion.div
               className="h-full bg-gradient-to-r from-[#8F2BFF] via-[#39D9E6] to-[#77F23B]"
-              initial={{ width: '0%' }}
-              animate={{ width: `${((currentStageIdx + 1) / STAGES.length) * 100}%` }}
+              initial={{ width: "0%" }}
+              animate={{
+                width: `${((currentStageIdx + 1) / STAGES.length) * 100}%`,
+              }}
               transition={{ duration: 0.3 }}
             />
           </div>
@@ -98,10 +121,10 @@ export const SplashLoader: React.FC<SplashLoaderProps> = ({ onComplete, systemSt
                 key={stage.id}
                 className={`flex items-center gap-3 rounded-lg px-3 py-2 text-xs transition-colors ${
                   isCurrent
-                    ? 'border border-[rgba(255,255,255,0.08)] bg-[#1A1A1A] text-white'
+                    ? "border border-[rgba(255,255,255,0.08)] bg-[#1A1A1A] text-white"
                     : isDone
-                    ? 'text-[#A3A3A0]'
-                    : 'text-[#555552]'
+                      ? "text-[#A3A3A0]"
+                      : "text-[#555552]"
                 }`}
               >
                 {isDone ? (
@@ -109,7 +132,9 @@ export const SplashLoader: React.FC<SplashLoaderProps> = ({ onComplete, systemSt
                 ) : (
                   <Icon
                     className={`h-4 w-4 shrink-0 ${
-                      isCurrent ? 'animate-pulse text-[#39D9E6]' : 'text-[#6B6B67]'
+                      isCurrent
+                        ? "animate-pulse text-[#39D9E6]"
+                        : "text-[#6B6B67]"
                     }`}
                   />
                 )}

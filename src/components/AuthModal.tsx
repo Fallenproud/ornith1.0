@@ -2,7 +2,7 @@
  * ULTIMATE ORNITH 1.0 — OAuth2 Authentication & Identity Modal
  */
 
-import React, { useState } from 'react';
+import React, { useState } from "react";
 import {
   Shield,
   ShieldCheck,
@@ -16,9 +16,14 @@ import {
   Sparkles,
   Server,
   Fingerprint,
-} from 'lucide-react';
-import { AuthUser, OAuthProviderType } from '../types';
-import { signInWithGoogleOAuth, signInWithGithubOAuth, createDevOAuthSession, signOutAuth } from '../lib/auth';
+} from "lucide-react";
+import { AuthUser, OAuthProviderType } from "../types";
+import {
+  signInWithGoogleOAuth,
+  signInWithGithubOAuth,
+  createDevOAuthSession,
+  signOutAuth,
+} from "../lib/auth";
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -35,21 +40,24 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   onAuthSuccess,
   onSignOut,
 }) => {
-  const [loadingProvider, setLoadingProvider] = useState<OAuthProviderType | null>(null);
+  const [loadingProvider, setLoadingProvider] =
+    useState<OAuthProviderType | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   if (!isOpen) return null;
 
   const handleGoogleSignIn = async () => {
     try {
-      setLoadingProvider('google');
+      setLoadingProvider("google");
       setErrorMsg(null);
       const user = await signInWithGoogleOAuth();
       onAuthSuccess(user);
       onClose();
     } catch (err: any) {
-      console.error('Google OAuth feilet:', err);
-      setErrorMsg(err.message || 'Kunne ikke fullføre Google OAuth-autentisering');
+      console.error("Google OAuth feilet:", err);
+      setErrorMsg(
+        err.message || "Kunne ikke fullføre Google OAuth-autentisering",
+      );
     } finally {
       setLoadingProvider(null);
     }
@@ -57,23 +65,29 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
   const handleGithubSignIn = async () => {
     try {
-      setLoadingProvider('github');
+      setLoadingProvider("github");
       setErrorMsg(null);
       const user = await signInWithGithubOAuth();
       onAuthSuccess(user);
       onClose();
     } catch (err: any) {
-      console.error('GitHub OAuth feilet:', err);
-      setErrorMsg(err.message || 'Kunne ikke fullføre GitHub OAuth-autentisering');
+      console.error("GitHub OAuth feilet:", err);
+      setErrorMsg(
+        err.message || "Kunne ikke fullføre GitHub OAuth-autentisering",
+      );
     } finally {
       setLoadingProvider(null);
     }
   };
 
   const handleQuickDevSignIn = () => {
-    setLoadingProvider('dev-session');
+    setLoadingProvider("dev-session");
     setErrorMsg(null);
-    const user = createDevOAuthSession('google', 'mrevensen94@gmail.com', 'M. Revensen');
+    const user = createDevOAuthSession(
+      "google",
+      "mrevensen94@gmail.com",
+      "M. Revensen",
+    );
     onAuthSuccess(user);
     setLoadingProvider(null);
     onClose();
@@ -96,10 +110,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             </div>
             <div>
               <h2 className="text-sm font-bold text-white tracking-wide">
-                {currentUser ? 'Brukerprofil & Sikkerhet' : 'API Gateway Autentisering'}
+                {currentUser
+                  ? "Brukerprofil & Sikkerhet"
+                  : "API Gateway Autentisering"}
               </h2>
               <p className="text-[11px] text-[#A3A3A0]">
-                {currentUser ? 'Bekreftet OAuth2 sesjon aktiv' : 'Beskyttede TinyML og AI-endepunkter'}
+                {currentUser
+                  ? "Bekreftet OAuth2 sesjon aktiv"
+                  : "Beskyttede TinyML og AI-endepunkter"}
               </p>
             </div>
           </div>
@@ -126,24 +144,28 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 {currentUser.photoURL ? (
                   <img
                     src={currentUser.photoURL}
-                    alt={currentUser.displayName || 'Bruker'}
+                    alt={currentUser.displayName || "Bruker"}
                     className="h-12 w-12 rounded-full border border-[#8F2BFF]/40 object-cover"
                     referrerPolicy="no-referrer"
                   />
                 ) : (
                   <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#8F2BFF]/20 font-bold text-[#39D9E6]">
-                    {(currentUser.displayName || currentUser.email || 'U')[0].toUpperCase()}
+                    {(currentUser.displayName ||
+                      currentUser.email ||
+                      "U")[0].toUpperCase()}
                   </div>
                 )}
 
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-1.5">
                     <h3 className="truncate font-semibold text-white text-sm">
-                      {currentUser.displayName || 'Navnløs bruker'}
+                      {currentUser.displayName || "Navnløs bruker"}
                     </h3>
                     <ShieldCheck className="h-4 w-4 shrink-0 text-[#77F23B]" />
                   </div>
-                  <p className="truncate text-xs text-[#A3A3A0]">{currentUser.email || 'Ingen e-post registrert'}</p>
+                  <p className="truncate text-xs text-[#A3A3A0]">
+                    {currentUser.email || "Ingen e-post registrert"}
+                  </p>
                   <div className="mt-1 flex items-center gap-2">
                     <span className="inline-flex items-center gap-1 rounded bg-[#8F2BFF]/15 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-[#B25CFF] uppercase">
                       {currentUser.provider}
@@ -193,7 +215,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             /* Unauthenticated OAuth2 Providers Selection */
             <div className="space-y-4">
               <div className="rounded-xl border border-[rgba(255,255,255,0.06)] bg-[#191918] p-3 text-xs leading-relaxed text-[#A3A3A0]">
-                Få tilgang til sensitive API gateway endepunkter, TinyML-trening og AI-resonnering ved å bekrefte identitet med en OAuth2-tilbyder.
+                Få tilgang til sensitive API gateway endepunkter, TinyML-trening
+                og AI-resonnering ved å bekrefte identitet med en
+                OAuth2-tilbyder.
               </div>
 
               <div className="space-y-2.5 pt-1">
@@ -222,7 +246,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     />
                   </svg>
                   <span>
-                    {loadingProvider === 'google' ? 'Autentiserer med Google...' : 'Logg inn med Google OAuth'}
+                    {loadingProvider === "google"
+                      ? "Autentiserer med Google..."
+                      : "Logg inn med Google OAuth"}
                   </span>
                 </button>
 
@@ -236,7 +262,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z" />
                   </svg>
                   <span>
-                    {loadingProvider === 'github' ? 'Autentiserer med GitHub...' : 'Logg inn med GitHub OAuth'}
+                    {loadingProvider === "github"
+                      ? "Autentiserer med GitHub..."
+                      : "Logg inn med GitHub OAuth"}
                   </span>
                 </button>
 
@@ -247,7 +275,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-[#8F2BFF]/30 bg-[#8F2BFF]/10 py-2.5 text-xs font-semibold text-[#B25CFF] transition-all hover:border-[#8F2BFF]/60 hover:bg-[#8F2BFF]/20"
                   >
                     <Fingerprint className="h-3.5 w-3.5" />
-                    <span>Hurtig verifisert sesjon (mrevensen94@gmail.com)</span>
+                    <span>
+                      Hurtig verifisert sesjon (mrevensen94@gmail.com)
+                    </span>
                   </button>
                 </div>
               </div>

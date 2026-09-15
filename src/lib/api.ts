@@ -20,20 +20,22 @@ import {
   ValidationErrorDetail,
   ExportPackageOptions,
   ExportPreviewInfo,
-} from '../types';
+} from "../types";
 
 let currentAuthToken: string | null = null;
-let currentTenantId: string = 'default';
+let currentTenantId: string = "default";
 
-function getAuthHeaders(customHeaders: Record<string, string> = {}): Record<string, string> {
+function getAuthHeaders(
+  customHeaders: Record<string, string> = {},
+): Record<string, string> {
   const headers: Record<string, string> = {
     ...customHeaders,
   };
   if (currentAuthToken) {
-    headers['Authorization'] = `Bearer ${currentAuthToken}`;
+    headers["Authorization"] = `Bearer ${currentAuthToken}`;
   }
   if (currentTenantId) {
-    headers['x-tenant-id'] = currentTenantId;
+    headers["x-tenant-id"] = currentTenantId;
   }
   return headers;
 }
@@ -54,61 +56,73 @@ export const API = {
   async getAuthSession(): Promise<{
     authenticated: boolean;
     user: any;
-    providers: { google: { name: string; enabled: boolean }; github: { name: string; enabled: boolean } };
+    providers: {
+      google: { name: string; enabled: boolean };
+      github: { name: string; enabled: boolean };
+    };
   }> {
-    const res = await fetch('/api/auth/session', {
+    const res = await fetch("/api/auth/session", {
       headers: getAuthHeaders(),
     });
-    if (!res.ok) throw new Error('Kunne ikke validere autentiseringssesjon');
+    if (!res.ok) throw new Error("Kunne ikke validere autentiseringssesjon");
     return res.json();
   },
 
   async getStatus(): Promise<RuntimeSystemStatus> {
-    const res = await fetch('/api/status', {
+    const res = await fetch("/api/status", {
       headers: getAuthHeaders(),
     });
-    if (!res.ok) throw new Error('Kunne ikke hente systemstatus');
+    if (!res.ok) throw new Error("Kunne ikke hente systemstatus");
     return res.json();
   },
 
   async listProjects(): Promise<ProjectMetadata[]> {
-    const res = await fetch('/api/projects', {
+    const res = await fetch("/api/projects", {
       headers: getAuthHeaders(),
     });
-    if (!res.ok) throw new Error('Kunne ikke hente prosjekter');
+    if (!res.ok) throw new Error("Kunne ikke hente prosjekter");
     return res.json();
   },
 
-  async createProject(data: Partial<ProjectMetadata>): Promise<ProjectMetadata> {
-    const res = await fetch('/api/projects', {
-      method: 'POST',
-      headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
+  async createProject(
+    data: Partial<ProjectMetadata>,
+  ): Promise<ProjectMetadata> {
+    const res = await fetch("/api/projects", {
+      method: "POST",
+      headers: getAuthHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify(data),
     });
     if (!res.ok) {
-      const err = await res.json().catch(() => ({ error: 'Kunne ikke opprette prosjekt' }));
-      throw new Error(err.error || 'Kunne ikke opprette prosjekt');
+      const err = await res
+        .json()
+        .catch(() => ({ error: "Kunne ikke opprette prosjekt" }));
+      throw new Error(err.error || "Kunne ikke opprette prosjekt");
     }
     return res.json();
   },
 
   async deleteProject(id: string): Promise<{ success: boolean }> {
     const res = await fetch(`/api/projects/${id}`, {
-      method: 'DELETE',
+      method: "DELETE",
       headers: getAuthHeaders(),
     });
     if (!res.ok) {
-      const err = await res.json().catch(() => ({ error: 'Kunne ikke slette prosjekt' }));
-      throw new Error(err.error || 'Kunne ikke slette prosjekt');
+      const err = await res
+        .json()
+        .catch(() => ({ error: "Kunne ikke slette prosjekt" }));
+      throw new Error(err.error || "Kunne ikke slette prosjekt");
     }
     return res.json();
   },
 
-  async getProjectValidationRules(projectId: string): Promise<ProjectValidationConfig> {
+  async getProjectValidationRules(
+    projectId: string,
+  ): Promise<ProjectValidationConfig> {
     const res = await fetch(`/api/projects/${projectId}/validation-rules`, {
       headers: getAuthHeaders(),
     });
-    if (!res.ok) throw new Error('Kunne ikke hente valideringsregler for prosjektet');
+    if (!res.ok)
+      throw new Error("Kunne ikke hente valideringsregler for prosjektet");
     return res.json();
   },
 
@@ -118,33 +132,45 @@ export const API = {
       rules: DatasetValidationRule[];
       strictMode?: boolean;
       autoCleanWhitespace?: boolean;
-    }
-  ): Promise<{ success: boolean; validationConfig: ProjectValidationConfig; project: ProjectMetadata }> {
+    },
+  ): Promise<{
+    success: boolean;
+    validationConfig: ProjectValidationConfig;
+    project: ProjectMetadata;
+  }> {
     const res = await fetch(`/api/projects/${projectId}/validation-rules`, {
-      method: 'PUT',
-      headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
+      method: "PUT",
+      headers: getAuthHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify(config),
     });
     if (!res.ok) {
-      const err = await res.json().catch(() => ({ error: 'Kunne ikke oppdatere prosjektets valideringsregler' }));
-      throw new Error(err.error || 'Kunne ikke oppdatere prosjektets valideringsregler');
+      const err = await res
+        .json()
+        .catch(() => ({
+          error: "Kunne ikke oppdatere prosjektets valideringsregler",
+        }));
+      throw new Error(
+        err.error || "Kunne ikke oppdatere prosjektets valideringsregler",
+      );
     }
     return res.json();
   },
 
   async listDatasets(): Promise<DatasetMetadata[]> {
-    const res = await fetch('/api/datasets', {
+    const res = await fetch("/api/datasets", {
       headers: getAuthHeaders(),
     });
-    if (!res.ok) throw new Error('Kunne ikke hente datasett');
+    if (!res.ok) throw new Error("Kunne ikke hente datasett");
     return res.json();
   },
 
-  async getDataset(id: string): Promise<{ meta: DatasetMetadata; records: DatasetRecord[] }> {
+  async getDataset(
+    id: string,
+  ): Promise<{ meta: DatasetMetadata; records: DatasetRecord[] }> {
     const res = await fetch(`/api/datasets/${id}`, {
       headers: getAuthHeaders(),
     });
-    if (!res.ok) throw new Error('Kunne ikke hente datasett-detaljer');
+    if (!res.ok) throw new Error("Kunne ikke hente datasett-detaljer");
     return res.json();
   },
 
@@ -166,14 +192,16 @@ export const API = {
     invalidRows?: number;
     ruleFailures?: any[];
   }> {
-    const res = await fetch('/api/datasets/upload', {
-      method: 'POST',
-      headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
+    const res = await fetch("/api/datasets/upload", {
+      method: "POST",
+      headers: getAuthHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify(payload),
     });
     if (!res.ok) {
-      const err = await res.json().catch(() => ({ error: 'Opplasting feilet' }));
-      throw new Error(err.error || 'Kunne ikke laste opp datasett');
+      const err = await res
+        .json()
+        .catch(() => ({ error: "Opplasting feilet" }));
+      throw new Error(err.error || "Kunne ikke laste opp datasett");
     }
     return res.json();
   },
@@ -184,16 +212,52 @@ export const API = {
       projectId?: string;
       rules?: DatasetValidationRule[];
       strictMode?: boolean;
-    }
-  ): Promise<{ meta: DatasetMetadata; records: DatasetRecord[]; summary: DatasetValidationSummary }> {
+    },
+  ): Promise<{
+    meta: DatasetMetadata;
+    records: DatasetRecord[];
+    summary: DatasetValidationSummary;
+  }> {
     const res = await fetch(`/api/datasets/${datasetId}/validate`, {
-      method: 'POST',
-      headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
+      method: "POST",
+      headers: getAuthHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify(options || {}),
     });
     if (!res.ok) {
-      const err = await res.json().catch(() => ({ error: 'Validering feilet' }));
-      throw new Error(err.error || 'Kunne ikke revalidere datasett');
+      const err = await res
+        .json()
+        .catch(() => ({ error: "Validering feilet" }));
+      throw new Error(err.error || "Kunne ikke revalidere datasett");
+    }
+    return res.json();
+  },
+
+  async cleanDataset(
+    datasetId: string,
+    options: {
+      action?: string;
+      recordIdsToRemove?: string[];
+      removeDuplicates?: boolean;
+      removeUnlabeled?: boolean;
+      projectId?: string;
+    },
+  ): Promise<{
+    success: boolean;
+    meta: DatasetMetadata;
+    records: DatasetRecord[];
+    summary: DatasetValidationSummary;
+    removedCount: number;
+  }> {
+    const res = await fetch(`/api/datasets/${datasetId}/clean`, {
+      method: "POST",
+      headers: getAuthHeaders({ "Content-Type": "application/json" }),
+      body: JSON.stringify(options || {}),
+    });
+    if (!res.ok) {
+      const err = await res
+        .json()
+        .catch(() => ({ error: "Rensing av datasett feilet" }));
+      throw new Error(err.error || "Kunne ikke utføre fjerningstiltak i datasettet");
     }
     return res.json();
   },
@@ -210,14 +274,14 @@ export const API = {
     failures: ValidationErrorDetail[];
     norwegianCharCount: { ae: number; oe: number; aa: number; total: number };
   }> {
-    const res = await fetch('/api/validation/test-rule', {
-      method: 'POST',
-      headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
+    const res = await fetch("/api/validation/test-rule", {
+      method: "POST",
+      headers: getAuthHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify(payload),
     });
     if (!res.ok) {
-      const err = await res.json().catch(() => ({ error: 'Regeltest feilet' }));
-      throw new Error(err.error || 'Kunne ikke teste valideringsregel');
+      const err = await res.json().catch(() => ({ error: "Regeltest feilet" }));
+      throw new Error(err.error || "Kunne ikke teste valideringsregel");
     }
     return res.json();
   },
@@ -229,36 +293,40 @@ export const API = {
     preprocessing?: PreprocessingConfig;
     modelConfig?: ModelArchitectureConfig;
   }): Promise<{ success: boolean; runId: string; run: TrainingRun }> {
-    const res = await fetch('/api/training/start', {
-      method: 'POST',
-      headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
+    const res = await fetch("/api/training/start", {
+      method: "POST",
+      headers: getAuthHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify(params),
     });
     if (!res.ok) {
-      const err = await res.json().catch(() => ({ error: 'Trening feilet' }));
-      throw new Error(err.error || 'Kunne ikke starte trening');
+      const err = await res.json().catch(() => ({ error: "Trening feilet" }));
+      throw new Error(err.error || "Kunne ikke starte trening");
     }
     return res.json();
   },
 
   async cancelTraining(): Promise<{ message: string }> {
-    const res = await fetch('/api/training/cancel', {
-      method: 'POST',
+    const res = await fetch("/api/training/cancel", {
+      method: "POST",
       headers: getAuthHeaders(),
     });
     if (!res.ok) {
-      const err = await res.json().catch(() => ({ error: 'Kunne ikke avbryte' }));
-      throw new Error(err.error || 'Kunne ikke avbryte trening');
+      const err = await res
+        .json()
+        .catch(() => ({ error: "Kunne ikke avbryte" }));
+      throw new Error(err.error || "Kunne ikke avbryte trening");
     }
     return res.json();
   },
 
   async listRuns(projectId?: string): Promise<TrainingRun[]> {
-    const url = projectId ? `/api/training/runs?projectId=${projectId}` : '/api/training/runs';
+    const url = projectId
+      ? `/api/training/runs?projectId=${projectId}`
+      : "/api/training/runs";
     const res = await fetch(url, {
       headers: getAuthHeaders(),
     });
-    if (!res.ok) throw new Error('Kunne ikke hente treningsøkter');
+    if (!res.ok) throw new Error("Kunne ikke hente treningsøkter");
     return res.json();
   },
 
@@ -266,34 +334,37 @@ export const API = {
     const res = await fetch(`/api/evaluation/${runId}`, {
       headers: getAuthHeaders(),
     });
-    if (!res.ok) throw new Error('Ingen evaluering funnet for denne økten');
+    if (!res.ok) throw new Error("Ingen evaluering funnet for denne økten");
     return res.json();
   },
 
-  async runInference(text: string, runId?: string): Promise<{
+  async runInference(
+    text: string,
+    runId?: string,
+  ): Promise<{
     label: string;
     confidence: number;
     probabilities: Record<string, number>;
     normalizedTokens: string[];
   }> {
-    const res = await fetch('/api/inference', {
-      method: 'POST',
-      headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
+    const res = await fetch("/api/inference", {
+      method: "POST",
+      headers: getAuthHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify({ text, runId }),
     });
     if (!res.ok) {
-      const err = await res.json().catch(() => ({ error: 'Inferens feilet' }));
-      throw new Error(err.error || 'Kunne ikke kjøre inferens');
+      const err = await res.json().catch(() => ({ error: "Inferens feilet" }));
+      throw new Error(err.error || "Kunne ikke kjøre inferens");
     }
     return res.json();
   },
 
   async listArtifacts(runId?: string): Promise<ModelArtifact[]> {
-    const url = runId ? `/api/artifacts?runId=${runId}` : '/api/artifacts';
+    const url = runId ? `/api/artifacts?runId=${runId}` : "/api/artifacts";
     const res = await fetch(url, {
       headers: getAuthHeaders(),
     });
-    if (!res.ok) throw new Error('Kunne ikke hente artefakter');
+    if (!res.ok) throw new Error("Kunne ikke hente artefakter");
     return res.json();
   },
 
@@ -301,36 +372,58 @@ export const API = {
     const res = await fetch(`/api/export/preview/${runId}`, {
       headers: getAuthHeaders(),
     });
-    if (!res.ok) throw new Error('Kunne ikke hente forhåndsvisning av eksportpakke');
+    if (!res.ok)
+      throw new Error("Kunne ikke hente forhåndsvisning av eksportpakke");
     return res.json();
   },
 
   getExportPackageUrl(runId: string, options?: ExportPackageOptions): string {
     const params = new URLSearchParams();
     if (options) {
-      if (options.includeTflite !== undefined) params.set('includeTflite', String(options.includeTflite));
-      if (options.includeSavedModel !== undefined) params.set('includeSavedModel', String(options.includeSavedModel));
-      if (options.includeCHeader !== undefined) params.set('includeCHeader', String(options.includeCHeader));
-      if (options.includeJsonWeights !== undefined) params.set('includeJsonWeights', String(options.includeJsonWeights));
-      if (options.includeMetadata !== undefined) params.set('includeMetadata', String(options.includeMetadata));
-      if (options.includeTrainingConfig !== undefined) params.set('includeTrainingConfig', String(options.includeTrainingConfig));
-      if (options.includeEvaluationMetrics !== undefined) params.set('includeEvaluationMetrics', String(options.includeEvaluationMetrics));
-      if (options.includeLogs !== undefined) params.set('includeLogs', String(options.includeLogs));
-      if (options.includeScripts !== undefined) params.set('includeScripts', String(options.includeScripts));
+      if (options.includeTflite !== undefined)
+        params.set("includeTflite", String(options.includeTflite));
+      if (options.includeSavedModel !== undefined)
+        params.set("includeSavedModel", String(options.includeSavedModel));
+      if (options.includeCHeader !== undefined)
+        params.set("includeCHeader", String(options.includeCHeader));
+      if (options.includeJsonWeights !== undefined)
+        params.set("includeJsonWeights", String(options.includeJsonWeights));
+      if (options.includeMetadata !== undefined)
+        params.set("includeMetadata", String(options.includeMetadata));
+      if (options.includeTrainingConfig !== undefined)
+        params.set(
+          "includeTrainingConfig",
+          String(options.includeTrainingConfig),
+        );
+      if (options.includeEvaluationMetrics !== undefined)
+        params.set(
+          "includeEvaluationMetrics",
+          String(options.includeEvaluationMetrics),
+        );
+      if (options.includeLogs !== undefined)
+        params.set("includeLogs", String(options.includeLogs));
+      if (options.includeScripts !== undefined)
+        params.set("includeScripts", String(options.includeScripts));
     }
     if (currentAuthToken) {
-      params.set('token', currentAuthToken);
+      params.set("token", currentAuthToken);
     }
     const query = params.toString();
-    return query ? `/api/export/package/${runId}?${query}` : `/api/export/package/${runId}`;
+    return query
+      ? `/api/export/package/${runId}?${query}`
+      : `/api/export/package/${runId}`;
   },
 
   getTfliteUrl(runId: string): string {
-    return currentAuthToken ? `/api/export/tflite/${runId}?token=${encodeURIComponent(currentAuthToken)}` : `/api/export/tflite/${runId}`;
+    return currentAuthToken
+      ? `/api/export/tflite/${runId}?token=${encodeURIComponent(currentAuthToken)}`
+      : `/api/export/tflite/${runId}`;
   },
 
   getSavedModelUrl(runId: string): string {
-    return currentAuthToken ? `/api/export/saved-model/${runId}?token=${encodeURIComponent(currentAuthToken)}` : `/api/export/saved-model/${runId}`;
+    return currentAuthToken
+      ? `/api/export/saved-model/${runId}?token=${encodeURIComponent(currentAuthToken)}`
+      : `/api/export/saved-model/${runId}`;
   },
 
   getTfliteWithMetricsBundleUrl(runId: string): string {
@@ -362,56 +455,72 @@ export const API = {
   },
 
   async getFileTree(): Promise<FileTreeItem> {
-    const res = await fetch('/api/files/tree', {
+    const res = await fetch("/api/files/tree", {
       headers: getAuthHeaders(),
     });
-    if (!res.ok) throw new Error('Kunne ikke hente filtre');
+    if (!res.ok) throw new Error("Kunne ikke hente filtre");
     return res.json();
   },
 
-  async getFileContent(filePath: string): Promise<{ content: string; extension: string }> {
-    const res = await fetch(`/api/files/content?path=${encodeURIComponent(filePath)}`, {
-      headers: getAuthHeaders(),
-    });
-    if (!res.ok) throw new Error('Kunne ikke lese fil');
+  async getFileContent(
+    filePath: string,
+  ): Promise<{ content: string; extension: string }> {
+    const res = await fetch(
+      `/api/files/content?path=${encodeURIComponent(filePath)}`,
+      {
+        headers: getAuthHeaders(),
+      },
+    );
+    if (!res.ok) throw new Error("Kunne ikke lese fil");
     return res.json();
   },
 
-  async saveFileContent(filePath: string, content: string): Promise<{ success: boolean; savedAt: string }> {
-    const res = await fetch('/api/files/content', {
-      method: 'POST',
-      headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
+  async saveFileContent(
+    filePath: string,
+    content: string,
+  ): Promise<{ success: boolean; savedAt: string }> {
+    const res = await fetch("/api/files/content", {
+      method: "POST",
+      headers: getAuthHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify({ path: filePath, content }),
     });
     if (!res.ok) {
-      const err = await res.json().catch(() => ({ error: 'Kunne ikke lagre fil' }));
-      throw new Error(err.error || 'Kunne ikke lagre fil');
+      const err = await res
+        .json()
+        .catch(() => ({ error: "Kunne ikke lagre fil" }));
+      throw new Error(err.error || "Kunne ikke lagre fil");
     }
     return res.json();
   },
 
   async sendChatMessage(payload: {
     prompt: string;
-    history: Array<{ role: 'user' | 'model'; text: string }>;
+    history: Array<{ role: "user" | "model"; text: string }>;
     model?: string;
     thinking?: boolean;
     projectId?: string;
     provider?: string;
     tenantId?: string;
-  }): Promise<{ text: string; thinking?: string; modelUsed: string; provider?: string; tenantId?: string; latencyMs?: number }> {
-    const res = await fetch('/api/ai/chat', {
-      method: 'POST',
+  }): Promise<{
+    text: string;
+    thinking?: string;
+    modelUsed: string;
+    provider?: string;
+    tenantId?: string;
+    latencyMs?: number;
+  }> {
+    const res = await fetch("/api/ai/chat", {
+      method: "POST",
       headers: getAuthHeaders({
-        'Content-Type': 'application/json',
-        ...(payload.tenantId ? { 'x-tenant-id': payload.tenantId } : {}),
+        "Content-Type": "application/json",
+        ...(payload.tenantId ? { "x-tenant-id": payload.tenantId } : {}),
       }),
       body: JSON.stringify(payload),
     });
     if (!res.ok) {
-      const err = await res.json().catch(() => ({ error: 'AI svar feilet' }));
-      throw new Error(err.error || 'Kunne ikke kontakte AI assistent');
+      const err = await res.json().catch(() => ({ error: "AI svar feilet" }));
+      throw new Error(err.error || "Kunne ikke kontakte AI assistent");
     }
     return res.json();
   },
 };
-

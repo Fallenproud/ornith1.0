@@ -2,7 +2,7 @@
  * ULTIMATE ORNITH 1.0 — Prompt Composer
  */
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from "react";
 import {
   Send,
   Square,
@@ -11,7 +11,7 @@ import {
   X,
   FileText,
   Upload,
-} from 'lucide-react';
+} from "lucide-react";
 
 interface PromptComposerProps {
   onSendMessage: (text: string, attachments?: File[]) => void;
@@ -21,10 +21,10 @@ interface PromptComposerProps {
 }
 
 const QUICK_SUGGESTIONS = [
-  'Analyser det norske datasettet',
-  'Start TinyML-trening (25 epoker)',
-  'Generer C-header for Arduino Nano',
-  'Hvordan fungerer sammensatt ord-tokenisering i TinyML?',
+  "Analyser det norske datasettet",
+  "Start TinyML-trening (25 epoker)",
+  "Vis Firestore ytelse og telemetri",
+  "Generer C-header for Arduino Nano",
 ];
 
 export const PromptComposer: React.FC<PromptComposerProps> = ({
@@ -33,35 +33,35 @@ export const PromptComposer: React.FC<PromptComposerProps> = ({
   onCancelLoading,
   onQuickAction,
 }) => {
-  const [text, setText] = useState('');
+  const [text, setText] = useState("");
   const [attachments, setAttachments] = useState<File[]>([]);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Restore draft from localStorage
   useEffect(() => {
-    const draft = localStorage.getItem('ornith_prompt_draft');
+    const draft = localStorage.getItem("ornith_prompt_draft");
     if (draft) setText(draft);
   }, []);
 
   // Persist draft
   useEffect(() => {
-    localStorage.setItem('ornith_prompt_draft', text);
+    localStorage.setItem("ornith_prompt_draft", text);
   }, [text]);
 
   const handleSend = () => {
     if ((!text.trim() && attachments.length === 0) || isLoading) return;
     onSendMessage(text.trim(), attachments);
-    setText('');
+    setText("");
     setAttachments([]);
-    localStorage.removeItem('ornith_prompt_draft');
+    localStorage.removeItem("ornith_prompt_draft");
     if (textareaRef.current) {
-      textareaRef.current.style.height = 'auto';
+      textareaRef.current.style.height = "auto";
     }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSend();
     }
@@ -71,7 +71,7 @@ export const PromptComposer: React.FC<PromptComposerProps> = ({
     setText(e.target.value);
     // Auto-adjust height
     if (textareaRef.current) {
-      textareaRef.current.style.height = 'auto';
+      textareaRef.current.style.height = "auto";
       textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 180)}px`;
     }
   };
@@ -91,9 +91,9 @@ export const PromptComposer: React.FC<PromptComposerProps> = ({
       {/* Quick suggestions pills */}
       <div className="mb-2.5 flex items-center gap-1.5 overflow-x-auto pb-1 text-[11px] no-scrollbar">
         <Sparkles className="h-3 w-3 shrink-0 text-[#8F2BFF]" />
-        {QUICK_SUGGESTIONS.map((sugg, i) => (
+        {QUICK_SUGGESTIONS.map((sugg) => (
           <button
-            key={i}
+            key={`suggestion-${sugg.toLowerCase().replace(/[^a-z0-9]/g, '-')}`}
             onClick={() => onQuickAction(sugg)}
             className="shrink-0 rounded-full border border-[rgba(255,255,255,0.08)] bg-[#1A1A1A] px-2.5 py-1 text-[#A3A3A0] transition-colors hover:border-[#8F2BFF]/40 hover:text-white"
           >
@@ -107,7 +107,7 @@ export const PromptComposer: React.FC<PromptComposerProps> = ({
         <div className="mb-2 flex flex-wrap gap-2">
           {attachments.map((file, idx) => (
             <div
-              key={idx}
+              key={`att-file-${file.name}-${file.size}-${file.lastModified || idx}`}
               className="flex items-center gap-1.5 rounded-md border border-[rgba(255,255,255,0.1)] bg-[#1A1A1A] px-2 py-1 text-xs text-[#E0E0DC]"
             >
               <FileText className="h-3.5 w-3.5 text-[#39D9E6]" />

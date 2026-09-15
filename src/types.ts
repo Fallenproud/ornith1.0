@@ -2,32 +2,35 @@
  * ULTIMATE ORNITH 1.0 — Typed Contracts & Shared Schemas
  */
 
-export type LocaleMode = 'nb-NO' | 'nn-NO' | 'en-US';
+export type LocaleMode = "nb-NO" | "nn-NO" | "en-US";
 
 export type RightPaneMode =
-  | 'files'
-  | 'code'
-  | 'dataset'
-  | 'preview'
-  | 'training'
-  | 'evaluation'
-  | 'artifacts';
+  | "files"
+  | "code"
+  | "dataset"
+  | "preview"
+  | "training"
+  | "evaluation"
+  | "artifacts"
+  | "telemetry"
+  | "inference"
+  | "benchmark";
 
 export type ValidationRuleType =
-  | 'missing_values'
-  | 'column_type'
-  | 'text_length'
-  | 'word_count'
-  | 'range_limits'
-  | 'unique_text'
-  | 'label_whitelist'
-  | 'norwegian_char_presence'
-  | 'norwegian_char_frequency'
-  | 'norwegian_dialect'
-  | 'ban_mojibake'
-  | 'regex_match';
+  | "missing_values"
+  | "column_type"
+  | "text_length"
+  | "word_count"
+  | "range_limits"
+  | "unique_text"
+  | "label_whitelist"
+  | "norwegian_char_presence"
+  | "norwegian_char_frequency"
+  | "norwegian_dialect"
+  | "ban_mojibake"
+  | "regex_match";
 
-export type ValidationSeverity = 'error' | 'warning';
+export type ValidationSeverity = "error" | "warning";
 
 export interface DatasetValidationRule {
   id: string;
@@ -37,8 +40,8 @@ export interface DatasetValidationRule {
   enabled: boolean;
   severity: ValidationSeverity;
   params: {
-    targetColumn?: 'text' | 'label' | string;
-    expectedType?: 'string' | 'number' | 'boolean';
+    targetColumn?: "text" | "label" | string;
+    expectedType?: "string" | "number" | "boolean";
     disallowEmpty?: boolean;
     disallowWhitespaceOnly?: boolean;
     maxMissingPercent?: number;
@@ -54,8 +57,8 @@ export interface DatasetValidationRule {
     allowedLabels?: string[];
     minNorwegianChars?: number;
     minNorwegianFrequencyPercent?: number; // e.g. 1.5% of total characters must be æ, ø, å
-    requiredNorwegianCharacters?: ('æ' | 'ø' | 'å' | 'Æ' | 'Ø' | 'Å')[];
-    dialectTarget?: 'Bokmål' | 'Nynorsk' | 'any';
+    requiredNorwegianCharacters?: ("æ" | "ø" | "å" | "Æ" | "Ø" | "Å")[];
+    dialectTarget?: "Bokmål" | "Nynorsk" | "any";
     minNorwegianScore?: number;
     regexPattern?: string;
     regexFlags?: string;
@@ -98,7 +101,8 @@ export interface ProjectMetadata {
   createdAt: string;
   updatedAt: string;
   locale: LocaleMode;
-  targetArchitecture: 'tinyml-dense' | 'tinyml-cnn1d' | 'tinyml-embedding-classifier';
+  targetArchitecture:
+    "tinyml-dense" | "tinyml-cnn1d" | "tinyml-embedding-classifier";
   datasetId?: string;
   lastRunId?: string;
   version: string;
@@ -160,14 +164,14 @@ export interface DatasetMetadata {
   id: string;
   name: string;
   filename: string;
-  format: 'csv' | 'json' | 'jsonl' | 'txt';
+  format: "csv" | "json" | "jsonl" | "txt";
   sizeBytes: number;
   rowCount: number;
   createdAt: string;
   fingerprint: string;
   license: string;
   source: string;
-  dialect: 'Bokmål' | 'Nynorsk' | 'Blandet' | 'Dialekt/Uspesifisert';
+  dialect: "Bokmål" | "Nynorsk" | "Blandet" | "Dialekt/Uspesifisert";
   consent: boolean;
   validation: DatasetValidationSummary;
   splitConfig: DatasetSplitConfig;
@@ -180,26 +184,27 @@ export interface PreprocessingConfig {
   stripNumbers: boolean;
   maxVocabSize: number;
   maxSequenceLength: number;
-  tokenizationStrategy: 'word-ngram' | 'subword-char3' | 'whitespace';
-  padToken: '<PAD>';
-  unkToken: '<UNK>';
+  tokenizationStrategy: "word-ngram" | "subword-char3" | "whitespace";
+  padToken: "<PAD>";
+  unkToken: "<UNK>";
 }
 
 export interface ModelArchitectureConfig {
-  type: 'tinyml-dense' | 'tinyml-cnn1d' | 'tinyml-embedding-classifier';
+  type: "tinyml-dense" | "tinyml-cnn1d" | "tinyml-embedding-classifier";
   embeddingDim: number;
   hiddenUnits: number[];
   dropoutRate: number;
-  activation: 'relu' | 'tanh';
-  targetDevice: 'arduino-nano-ble' | 'esp32' | 'cortex-m4' | 'cortex-m0' | 'generic-c';
-  quantization: 'none' | 'int8' | 'float16';
+  activation: "relu" | "tanh";
+  targetDevice:
+    "arduino-nano-ble" | "esp32" | "cortex-m4" | "cortex-m0" | "generic-c";
+  quantization: "none" | "int8" | "float16";
 }
 
 export interface TrainingHyperparameters {
   epochs: number;
   batchSize: number;
   learningRate: number;
-  optimizer: 'adam' | 'sgd';
+  optimizer: "adam" | "sgd";
   seed: number;
   earlyStoppingPatience: number;
 }
@@ -214,7 +219,8 @@ export interface EpochMetric {
   learningRate: number;
 }
 
-export type TrainingStatus = 'idle' | 'preparing' | 'running' | 'completed' | 'cancelled' | 'failed';
+export type TrainingStatus =
+  "idle" | "preparing" | "running" | "completed" | "cancelled" | "failed";
 
 export interface TrainingRun {
   id: string;
@@ -279,14 +285,21 @@ export interface ModelArtifact {
   id: string;
   runId: string;
   name: string;
-  fileType: 'c-header' | 'json-weights' | 'tflite' | 'saved-model' | 'zip-package' | 'tflite-spec' | 'summary-md';
+  fileType:
+    | "c-header"
+    | "json-weights"
+    | "tflite"
+    | "saved-model"
+    | "zip-package"
+    | "tflite-spec"
+    | "summary-md";
   sizeBytes: number;
   path: string;
   description: string;
   downloadUrl: string;
   createdAt: string;
-  status?: 'ready' | 'exporting' | 'pending' | 'failed';
-  readinessState?: 'ready' | 'exporting' | 'stale';
+  status?: "ready" | "exporting" | "pending" | "failed";
+  readinessState?: "ready" | "exporting" | "stale";
   checksum?: string;
 }
 
@@ -310,7 +323,8 @@ export interface ExportPreviewInfo {
   files: Array<{
     path: string;
     description: string;
-    category: 'model' | 'metadata' | 'training' | 'evaluation' | 'logs' | 'script';
+    category:
+      "model" | "metadata" | "training" | "evaluation" | "logs" | "script";
     sizeBytes: number;
   }>;
 }
@@ -327,7 +341,7 @@ export interface FileTreeItem {
   isReadOnly?: boolean;
 }
 
-export type AiProvider = 'gemini' | 'openai' | 'local-ornith';
+export type AiProvider = "gemini" | "openai" | "local-ornith";
 
 export interface ProviderStatus {
   gemini: {
@@ -353,17 +367,17 @@ export interface MessageAttachment {
   id: string;
   name: string;
   size: number;
-  type: 'dataset' | 'file' | 'config' | 'metric';
+  type: "dataset" | "file" | "config" | "metric";
   url?: string;
   previewSnippet?: string;
 }
 
 export interface ChatMessage {
   id: string;
-  sender: 'user' | 'ornith' | 'model' | 'system' | 'training';
+  sender: "user" | "ornith" | "model" | "system" | "training";
   text: string;
   timestamp: string;
-  status?: 'sending' | 'streaming' | 'delivered' | 'error';
+  status?: "sending" | "streaming" | "delivered" | "error";
   provider?: AiProvider;
   model?: string;
   modelUsed?: string;
@@ -385,9 +399,9 @@ export interface ChatMessage {
 }
 
 export interface RuntimeSystemStatus {
-  backend: 'ready' | 'degraded' | 'unavailable';
-  storage: 'ready' | 'error';
-  tensorflowRuntime: 'ready' | 'cpu-only' | 'fallback';
+  backend: "ready" | "degraded" | "unavailable";
+  storage: "ready" | "error";
+  tensorflowRuntime: "ready" | "cpu-only" | "fallback";
   activeProject?: ProjectMetadata;
   activeRun?: TrainingRun;
   providers: ProviderStatus;
@@ -396,7 +410,8 @@ export interface RuntimeSystemStatus {
   version: string;
 }
 
-export type OAuthProviderType = 'google' | 'github' | 'anonymous' | 'dev-session';
+export type OAuthProviderType =
+  "google" | "github" | "anonymous" | "dev-session";
 
 export interface AuthUser {
   uid: string;
@@ -407,7 +422,7 @@ export interface AuthUser {
   token?: string;
   emailVerified?: boolean;
   tenantId?: string;
-  role?: 'admin' | 'researcher' | 'developer' | 'viewer';
+  role?: "admin" | "researcher" | "developer" | "viewer";
 }
 
 export interface AuthSessionState {
@@ -416,5 +431,31 @@ export interface AuthSessionState {
   user: AuthUser | null;
   error: string | null;
   token: string | null;
+}
+
+export interface ResourceTelemetryPoint {
+  id?: string;
+  timestamp: string;
+  cpuPercent: number;
+  ramUsedMb: number;
+  ramTotalMb: number;
+  ramPercent: number;
+  heapUsedMb: number;
+  heapTotalMb: number;
+  externalMb?: number;
+  cpuCores?: number;
+  trainingStatus: "idle" | "running" | "completed" | "cancelled" | "failed";
+  activeRunId?: string | null;
+  activeEpoch?: number;
+  totalEpochs?: number;
+  epochLoss?: number;
+  epochAccuracy?: number;
+}
+
+export interface ResourceTelemetryDocument {
+  current: ResourceTelemetryPoint;
+  history: ResourceTelemetryPoint[];
+  updatedAt: string;
+  serverUptimeSec: number;
 }
 

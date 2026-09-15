@@ -2,7 +2,7 @@
  * ULTIMATE ORNITH 1.0 — Workspace Header
  */
 
-import React from 'react';
+import React from "react";
 import {
   FolderGit2,
   Plus,
@@ -13,9 +13,9 @@ import {
   Activity,
   HardDrive,
   ChevronDown,
-} from 'lucide-react';
-import { ProjectMetadata, RuntimeSystemStatus, AuthUser } from '../types';
-import { UserAuthBadge } from './UserAuthBadge';
+} from "lucide-react";
+import { ProjectMetadata, RuntimeSystemStatus, AuthUser } from "../types";
+import { UserAuthBadge } from "./UserAuthBadge";
 
 interface HeaderProps {
   projects: ProjectMetadata[];
@@ -58,7 +58,9 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
           <div>
             <div className="flex items-center gap-1.5 leading-none">
-              <span className="font-mono text-sm font-bold tracking-tight text-white">ORNITH</span>
+              <span className="font-mono text-sm font-bold tracking-tight text-white">
+                ORNITH
+              </span>
               <span className="rounded bg-[#8F2BFF]/20 px-1 py-0.5 font-mono text-[9px] font-semibold text-[#B25CFF]">
                 1.0
               </span>
@@ -73,7 +75,7 @@ export const Header: React.FC<HeaderProps> = ({
         <div className="relative flex items-center">
           <FolderGit2 className="mr-1.5 h-3.5 w-3.5 text-[#39D9E6]" />
           <select
-            value={activeProject?.id || ''}
+            value={activeProject?.id || ""}
             onChange={(e) => {
               const selected = projects.find((p) => p.id === e.target.value);
               if (selected) onSelectProject(selected);
@@ -109,31 +111,43 @@ export const Header: React.FC<HeaderProps> = ({
             onChange={(e) => onSelectModel(e.target.value)}
             className="cursor-pointer bg-transparent font-mono text-[11px] text-[#F4F4F2] focus:outline-none"
           >
-            <option value="gemini-3.8-flash" className="bg-[#1A1A1A] text-white">
+            <option
+              value="gemini-3.8-flash"
+              className="bg-[#1A1A1A] text-white"
+            >
               Gemini 3.8 Flash (Anbefalt)
             </option>
-            <option value="gemini-3.1-pro-preview" className="bg-[#1A1A1A] text-white">
+            <option
+              value="gemini-3.1-pro-preview"
+              className="bg-[#1A1A1A] text-white"
+            >
               Gemini 3.1 Pro (Resonnering)
             </option>
-            <option value="gemini-3.1-flash-lite" className="bg-[#1A1A1A] text-white">
+            <option
+              value="gemini-3.1-flash-lite"
+              className="bg-[#1A1A1A] text-white"
+            >
               Gemini 3.1 Flash-Lite (Lav latens)
             </option>
-            <option value="local-ornith-engine" className="bg-[#1A1A1A] text-white">
+            <option
+              value="local-ornith-engine"
+              className="bg-[#1A1A1A] text-white"
+            >
               Lokal Ornith Motor (Offline)
             </option>
           </select>
 
-          {selectedModel === 'gemini-3.1-pro-preview' && (
+          {selectedModel === "gemini-3.1-pro-preview" && (
             <button
               onClick={onToggleThinking}
               title="Aktiver dyp resonnering (ThinkingLevel.HIGH)"
               className={`rounded px-1.5 py-0.5 text-[10px] font-mono transition-colors ${
                 useThinking
-                  ? 'bg-[#8F2BFF] text-white'
-                  : 'bg-[rgba(255,255,255,0.06)] text-[#A3A3A0] hover:text-white'
+                  ? "bg-[#8F2BFF] text-white"
+                  : "bg-[rgba(255,255,255,0.06)] text-[#A3A3A0] hover:text-white"
               }`}
             >
-              Thinking: {useThinking ? 'PÅ' : 'AV'}
+              Thinking: {useThinking ? "PÅ" : "AV"}
             </button>
           )}
         </div>
@@ -147,7 +161,9 @@ export const Header: React.FC<HeaderProps> = ({
           <span className="text-[#444]">|</span>
           <div className="flex items-center gap-1 text-[11px] text-[#A3A3A0]">
             <HardDrive className="h-3 w-3 text-[#39D9E6]" />
-            <span className="font-mono">{systemStatus?.memoryUsageMb || 120} MB</span>
+            <span className="font-mono">
+              {systemStatus?.memoryUsageMb || 120} MB
+            </span>
           </div>
         </div>
 
@@ -162,10 +178,14 @@ export const Header: React.FC<HeaderProps> = ({
         {/* Theme Toggle */}
         <button
           onClick={onToggleTheme}
-          title={isDark ? 'Bytt til lys modus' : 'Bytt til mørk modus'}
+          title={isDark ? "Bytt til lys modus" : "Bytt til mørk modus"}
           className="flex h-7 w-7 items-center justify-center rounded-lg border border-[rgba(255,255,255,0.08)] bg-[#1A1A1A] text-[#A3A3A0] transition-colors hover:text-white"
         >
-          {isDark ? <Sun className="h-3.5 w-3.5" /> : <Moon className="h-3.5 w-3.5" />}
+          {isDark ? (
+            <Sun className="h-3.5 w-3.5" />
+          ) : (
+            <Moon className="h-3.5 w-3.5" />
+          )}
         </button>
       </div>
     </header>

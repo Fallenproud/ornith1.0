@@ -13,9 +13,14 @@ import {
   query,
   orderBy,
   limit,
-} from 'firebase/firestore';
-import { db, handleFirestoreError, OperationType, testFirebaseConnection } from './firebase';
-import { ProjectMetadata, DatasetMetadata } from '../types';
+} from "firebase/firestore";
+import {
+  db,
+  handleFirestoreError,
+  OperationType,
+  testFirebaseConnection,
+} from "./firebase";
+import { ProjectMetadata, DatasetMetadata } from "../types";
 
 export interface CollectionCheckResult {
   collectionName: string;
@@ -34,7 +39,12 @@ export interface MigrationResult {
   errors: string[];
 }
 
-const REQUIRED_COLLECTIONS = ['projects', 'datasets', 'runs', 'conversations'] as const;
+const REQUIRED_COLLECTIONS = [
+  "projects",
+  "datasets",
+  "runs",
+  "conversations",
+] as const;
 
 /**
  * Checks for existence of required collections and tests indexed query paths
@@ -69,10 +79,10 @@ export async function runFirestoreMigration(): Promise<MigrationResult> {
 
         // Perform indexed query test corresponding to real-time subscription access patterns
         let testQuery;
-        if (collName === 'projects') {
-          testQuery = query(collRef, orderBy('updatedAt', 'desc'), limit(10));
-        } else if (collName === 'runs' || collName === 'datasets') {
-          testQuery = query(collRef, orderBy('createdAt', 'desc'), limit(10));
+        if (collName === "projects") {
+          testQuery = query(collRef, orderBy("updatedAt", "desc"), limit(10));
+        } else if (collName === "runs" || collName === "datasets") {
+          testQuery = query(collRef, orderBy("createdAt", "desc"), limit(10));
         } else {
           testQuery = query(collRef, limit(5));
         }
@@ -84,36 +94,45 @@ export async function runFirestoreMigration(): Promise<MigrationResult> {
       } catch (err: any) {
         check.error = err?.message || String(err);
         check.indexOptimized = false;
-        result.errors.push(`Feil ved sjekk av samling '${collName}': ${check.error}`);
+        result.errors.push(
+          `Feil ved sjekk av samling '${collName}': ${check.error}`,
+        );
         // Log formatted Firestore error
-        console.warn(`[Migration] Advarsel under indekssjekk for '${collName}':`, check.error);
+        console.warn(
+          `[Migration] Advarsel under indekssjekk for '${collName}':`,
+          check.error,
+        );
       }
 
       result.collections[collName] = check;
     }
 
     // 3. Ensure essential default seed exists if projects collection is empty
-    const projectsCheck = result.collections['projects'];
+    const projectsCheck = result.collections["projects"];
     if (projectsCheck?.exists && projectsCheck.count === 0) {
-      const defaultProjectId = 'ornith-tinyml-norsk-edge';
+      const defaultProjectId = "ornith-tinyml-norsk-edge";
       const defaultProject: ProjectMetadata = {
         id: defaultProjectId,
-        name: 'Norsk Edge IoT Klassifisering',
-        description: 'Lavlatens TinyML-modell for gjenkjenning av norske stemme- og tekstkommandoer på mikrokontrollere (Arduino / ESP32).',
+        name: "Norsk Edge IoT Klassifisering",
+        description:
+          "Lavlatens TinyML-modell for gjenkjenning av norske stemme- og tekstkommandoer på mikrokontrollere (Arduino / ESP32).",
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
-        locale: 'nb-NO',
-        targetArchitecture: 'tinyml-dense',
-        datasetId: 'norwegian-iot-smart-home',
-        version: '1.0.0',
+        locale: "nb-NO",
+        targetArchitecture: "tinyml-dense",
+        datasetId: "norwegian-iot-smart-home",
+        version: "1.0.0",
       };
 
       try {
-        await setDoc(doc(db, 'projects', defaultProjectId), defaultProject);
-        result.initializedSeeds.push('projects/ornith-tinyml-norsk-edge');
-        console.log('[Migration] Initialiserte standardprosjekt i Firestore.');
+        await setDoc(doc(db, "projects", defaultProjectId), defaultProject);
+        result.initializedSeeds.push("projects/ornith-tinyml-norsk-edge");
+        console.log("[Migration] Initialiserte standardprosjekt i Firestore.");
       } catch (err) {
-        console.warn('[Migration] Kunne ikke lagre standardprosjekt under migrering:', err);
+        console.warn(
+          "[Migration] Kunne ikke lagre standardprosjekt under migrering:",
+          err,
+        );
       }
     }
 
@@ -121,7 +140,7 @@ export async function runFirestoreMigration(): Promise<MigrationResult> {
       result.success = false;
     }
 
-    console.log('[Migration] Firestore migrerings- og indekssjekk fullført:', {
+    console.log("[Migration] Firestore migrerings- og indekssjekk fullført:", {
       success: result.success,
       connected: result.connected,
       collections: Object.keys(result.collections),
@@ -131,8 +150,13 @@ export async function runFirestoreMigration(): Promise<MigrationResult> {
     return result;
   } catch (globalErr: any) {
     result.success = false;
-    result.errors.push(`Kritisk migreringsfeil: ${globalErr?.message || String(globalErr)}`);
-    console.error('[Migration] Feil under kjøring av migreringsskript:', globalErr);
+    result.errors.push(
+      `Kritisk migreringsfeil: ${globalErr?.message || String(globalErr)}`,
+    );
+    console.error(
+      "[Migration] Feil under kjøring av migreringsskript:",
+      globalErr,
+    );
     return result;
   }
 }

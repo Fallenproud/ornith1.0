@@ -1,6 +1,6 @@
 /**
  * ULTIMATE ORNITH 1.0 — Comprehensive Model Export Modal
- * 
+ *
  * Supports exporting trained TinyML models in:
  * - TensorFlow Lite (.tflite)
  * - TensorFlow SavedModel format (saved_model bundle)
@@ -8,7 +8,7 @@
  * - Metadata, Model Card, Training Configs, Evaluation Metrics & Logs package
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import {
   X,
   Download,
@@ -29,15 +29,15 @@ import {
   FolderArchive,
   BarChart3,
   Sliders,
-} from 'lucide-react';
+} from "lucide-react";
 import {
   TrainingRun,
   ExportPackageOptions,
   ExportPreviewInfo,
   ModelArtifact,
-} from '../types';
-import { API } from '../lib/api';
-import { formatBytes, formatDateTime } from '../lib/i18n';
+} from "../types";
+import { API } from "../lib/api";
+import { formatBytes, formatDateTime } from "../lib/i18n";
 
 interface ExportModalProps {
   isOpen: boolean;
@@ -54,7 +54,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
   allRuns = [],
   onSelectRun,
 }) => {
-  const [selectedRunId, setSelectedRunId] = useState<string>(run?.id || '');
+  const [selectedRunId, setSelectedRunId] = useState<string>(run?.id || "");
   const [options, setOptions] = useState<Required<ExportPackageOptions>>({
     includeTflite: true,
     includeSavedModel: true,
@@ -67,12 +67,18 @@ export const ExportModal: React.FC<ExportModalProps> = ({
     includeScripts: true,
   });
 
-  const [previewInfo, setPreviewInfo] = useState<ExportPreviewInfo | null>(null);
+  const [previewInfo, setPreviewInfo] = useState<ExportPreviewInfo | null>(
+    null,
+  );
   const [isLoadingPreview, setIsLoadingPreview] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'options' | 'manifest' | 'snippets'>('options');
-  const [snippetTab, setSnippetTab] = useState<'python-tflite' | 'savedmodel' | 'arduino' | 'serving'>('python-tflite');
+  const [activeTab, setActiveTab] = useState<
+    "options" | "manifest" | "snippets"
+  >("options");
+  const [snippetTab, setSnippetTab] = useState<
+    "python-tflite" | "savedmodel" | "arduino" | "serving"
+  >("python-tflite");
 
   useEffect(() => {
     if (run?.id) {
@@ -94,7 +100,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
         }
       })
       .catch((err) => {
-        console.error('Failed to load export preview:', err);
+        console.error("Failed to load export preview:", err);
       })
       .finally(() => {
         if (isMounted) setIsLoadingPreview(false);
@@ -129,21 +135,28 @@ export const ExportModal: React.FC<ExportModalProps> = ({
 
   // Filter preview files based on user toggle selection
   const filteredFiles = (previewInfo?.files || []).filter((f) => {
-    if (f.category === 'model') {
-      if (f.path.endsWith('.tflite') && !options.includeTflite) return false;
-      if (f.path.includes('saved_model') && !options.includeSavedModel) return false;
-      if (f.path.endsWith('.h') && !options.includeCHeader) return false;
-      if (f.path.endsWith('weights.json') && !options.includeJsonWeights) return false;
+    if (f.category === "model") {
+      if (f.path.endsWith(".tflite") && !options.includeTflite) return false;
+      if (f.path.includes("saved_model") && !options.includeSavedModel)
+        return false;
+      if (f.path.endsWith(".h") && !options.includeCHeader) return false;
+      if (f.path.endsWith("weights.json") && !options.includeJsonWeights)
+        return false;
     }
-    if (f.category === 'metadata' && !options.includeMetadata) return false;
-    if (f.category === 'training' && !options.includeTrainingConfig) return false;
-    if (f.category === 'evaluation' && !options.includeEvaluationMetrics) return false;
-    if (f.category === 'logs' && !options.includeLogs) return false;
-    if (f.category === 'script' && !options.includeScripts) return false;
+    if (f.category === "metadata" && !options.includeMetadata) return false;
+    if (f.category === "training" && !options.includeTrainingConfig)
+      return false;
+    if (f.category === "evaluation" && !options.includeEvaluationMetrics)
+      return false;
+    if (f.category === "logs" && !options.includeLogs) return false;
+    if (f.category === "script" && !options.includeScripts) return false;
     return true;
   });
 
-  const estimatedTotalSize = filteredFiles.reduce((acc, f) => acc + f.sizeBytes, 0);
+  const estimatedTotalSize = filteredFiles.reduce(
+    (acc, f) => acc + f.sizeBytes,
+    0,
+  );
 
   const pythonSnippet = `import numpy as np
 import tensorflow.lite as tflite
@@ -229,7 +242,8 @@ curl -X POST http://localhost:8501/v1/models/ornith:predict \\
                 </span>
               </div>
               <p className="text-xs text-[#A3A3A0]">
-                Eksporter i standard formater (.tflite, SavedModel, C-header) med metadata, konfigurasjon og logger.
+                Eksporter i standard formater (.tflite, SavedModel, C-header)
+                med metadata, konfigurasjon og logger.
               </p>
             </div>
           </div>
@@ -245,7 +259,9 @@ curl -X POST http://localhost:8501/v1/models/ornith:predict \\
         {/* Run Selector & Mode Nav */}
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[rgba(255,255,255,0.06)] bg-[#141414] px-6 py-2.5">
           <div className="flex items-center gap-2">
-            <span className="text-xs font-medium text-[#A3A3A0]">Treningsøkt:</span>
+            <span className="text-xs font-medium text-[#A3A3A0]">
+              Treningsøkt:
+            </span>
             {allRuns.length > 1 ? (
               <select
                 value={selectedRunId}
@@ -257,45 +273,46 @@ curl -X POST http://localhost:8501/v1/models/ornith:predict \\
               >
                 {allRuns.map((r) => (
                   <option key={r.id} value={r.id}>
-                    {r.id} ({formatDateTime(r.createdAt)}) - Nøyaktighet: {((r.finalMetrics?.accuracy || 0) * 100).toFixed(1)}%
+                    {r.id} ({formatDateTime(r.createdAt)}) - Nøyaktighet:{" "}
+                    {((r.finalMetrics?.accuracy || 0) * 100).toFixed(1)}%
                   </option>
                 ))}
               </select>
             ) : (
               <span className="font-mono text-xs font-semibold text-[#77F23B]">
-                {selectedRunId || 'Gjeldende treningsøkt'}
+                {selectedRunId || "Gjeldende treningsøkt"}
               </span>
             )}
           </div>
 
           <div className="flex items-center gap-1">
             <button
-              onClick={() => setActiveTab('options')}
+              onClick={() => setActiveTab("options")}
               className={`rounded-lg px-3 py-1 text-xs font-medium transition-colors ${
-                activeTab === 'options'
-                  ? 'bg-[#8F2BFF]/20 text-[#B25CFF] border border-[#8F2BFF]/40'
-                  : 'text-[#A3A3A0] hover:text-white'
+                activeTab === "options"
+                  ? "bg-[#8F2BFF]/20 text-[#B25CFF] border border-[#8F2BFF]/40"
+                  : "text-[#A3A3A0] hover:text-white"
               }`}
             >
               Innhold & Valg
             </button>
             <button
-              onClick={() => setActiveTab('manifest')}
+              onClick={() => setActiveTab("manifest")}
               className={`flex items-center gap-1 rounded-lg px-3 py-1 text-xs font-medium transition-colors ${
-                activeTab === 'manifest'
-                  ? 'bg-[#8F2BFF]/20 text-[#B25CFF] border border-[#8F2BFF]/40'
-                  : 'text-[#A3A3A0] hover:text-white'
+                activeTab === "manifest"
+                  ? "bg-[#8F2BFF]/20 text-[#B25CFF] border border-[#8F2BFF]/40"
+                  : "text-[#A3A3A0] hover:text-white"
               }`}
             >
               <FolderArchive className="h-3.5 w-3.5" />
               <span>Pakke-manifest ({filteredFiles.length})</span>
             </button>
             <button
-              onClick={() => setActiveTab('snippets')}
+              onClick={() => setActiveTab("snippets")}
               className={`flex items-center gap-1 rounded-lg px-3 py-1 text-xs font-medium transition-colors ${
-                activeTab === 'snippets'
-                  ? 'bg-[#8F2BFF]/20 text-[#B25CFF] border border-[#8F2BFF]/40'
-                  : 'text-[#A3A3A0] hover:text-white'
+                activeTab === "snippets"
+                  ? "bg-[#8F2BFF]/20 text-[#B25CFF] border border-[#8F2BFF]/40"
+                  : "text-[#A3A3A0] hover:text-white"
               }`}
             >
               <Code2 className="h-3.5 w-3.5" />
@@ -306,7 +323,7 @@ curl -X POST http://localhost:8501/v1/models/ornith:predict \\
 
         {/* Modal Body */}
         <div className="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-6">
-          {activeTab === 'options' && (
+          {activeTab === "options" && (
             <>
               {/* Section 1: Model Binary Formats */}
               <div>
@@ -327,14 +344,14 @@ curl -X POST http://localhost:8501/v1/models/ornith:predict \\
                   <label
                     className={`flex cursor-pointer items-start gap-3 rounded-xl border p-3.5 transition-all ${
                       options.includeTflite
-                        ? 'border-[#39D9E6]/40 bg-[#39D9E6]/5'
-                        : 'border-[rgba(255,255,255,0.06)] bg-[#161616] opacity-60'
+                        ? "border-[#39D9E6]/40 bg-[#39D9E6]/5"
+                        : "border-[rgba(255,255,255,0.06)] bg-[#161616] opacity-60"
                     }`}
                   >
                     <input
                       type="checkbox"
                       checked={options.includeTflite}
-                      onChange={() => toggleOption('includeTflite')}
+                      onChange={() => toggleOption("includeTflite")}
                       className="mt-1 h-4 w-4 rounded border-gray-700 bg-[#222] text-[#39D9E6] focus:ring-0"
                     />
                     <div className="flex-1">
@@ -347,7 +364,9 @@ curl -X POST http://localhost:8501/v1/models/ornith:predict \\
                         </span>
                       </div>
                       <p className="mt-1 text-[11px] text-[#A3A3A0]">
-                        Standard binærfil med opcodes for FullyConnected, ReLU og Softmax. Klar for Raspberry Pi, Android, Edge TPU og TFLite-Micro.
+                        Standard binærfil med opcodes for FullyConnected, ReLU
+                        og Softmax. Klar for Raspberry Pi, Android, Edge TPU og
+                        TFLite-Micro.
                       </p>
                       <div className="mt-2 flex items-center gap-2">
                         <a
@@ -367,14 +386,14 @@ curl -X POST http://localhost:8501/v1/models/ornith:predict \\
                   <label
                     className={`flex cursor-pointer items-start gap-3 rounded-xl border p-3.5 transition-all ${
                       options.includeSavedModel
-                        ? 'border-[#8F2BFF]/40 bg-[#8F2BFF]/5'
-                        : 'border-[rgba(255,255,255,0.06)] bg-[#161616] opacity-60'
+                        ? "border-[#8F2BFF]/40 bg-[#8F2BFF]/5"
+                        : "border-[rgba(255,255,255,0.06)] bg-[#161616] opacity-60"
                     }`}
                   >
                     <input
                       type="checkbox"
                       checked={options.includeSavedModel}
-                      onChange={() => toggleOption('includeSavedModel')}
+                      onChange={() => toggleOption("includeSavedModel")}
                       className="mt-1 h-4 w-4 rounded border-gray-700 bg-[#222] text-[#8F2BFF] focus:ring-0"
                     />
                     <div className="flex-1">
@@ -387,7 +406,10 @@ curl -X POST http://localhost:8501/v1/models/ornith:predict \\
                         </span>
                       </div>
                       <p className="mt-1 text-[11px] text-[#A3A3A0]">
-                        Komplett mappe med <code className="text-white">saved_model.pb</code>, variabler, assets (vokabular) og serving_default signatur.
+                        Komplett mappe med{" "}
+                        <code className="text-white">saved_model.pb</code>,
+                        variabler, assets (vokabular) og serving_default
+                        signatur.
                       </p>
                       <div className="mt-2 flex items-center gap-2">
                         <a
@@ -407,14 +429,14 @@ curl -X POST http://localhost:8501/v1/models/ornith:predict \\
                   <label
                     className={`flex cursor-pointer items-start gap-3 rounded-xl border p-3.5 transition-all ${
                       options.includeCHeader
-                        ? 'border-[#77F23B]/40 bg-[#77F23B]/5'
-                        : 'border-[rgba(255,255,255,0.06)] bg-[#161616] opacity-60'
+                        ? "border-[#77F23B]/40 bg-[#77F23B]/5"
+                        : "border-[rgba(255,255,255,0.06)] bg-[#161616] opacity-60"
                     }`}
                   >
                     <input
                       type="checkbox"
                       checked={options.includeCHeader}
-                      onChange={() => toggleOption('includeCHeader')}
+                      onChange={() => toggleOption("includeCHeader")}
                       className="mt-1 h-4 w-4 rounded border-gray-700 bg-[#222] text-[#77F23B] focus:ring-0"
                     />
                     <div className="flex-1">
@@ -427,7 +449,12 @@ curl -X POST http://localhost:8501/v1/models/ornith:predict \\
                         </span>
                       </div>
                       <p className="mt-1 text-[11px] text-[#A3A3A0]">
-                        <code className="text-[#77F23B]">ornith_tinyml_model.h</code> med matrisekonstanter i Flash og <code className="text-white">ornith_predict()</code>. 0 bytes dynamisk heap-allokering.
+                        <code className="text-[#77F23B]">
+                          ornith_tinyml_model.h
+                        </code>{" "}
+                        med matrisekonstanter i Flash og{" "}
+                        <code className="text-white">ornith_predict()</code>. 0
+                        bytes dynamisk heap-allokering.
                       </p>
                     </div>
                   </label>
@@ -436,14 +463,14 @@ curl -X POST http://localhost:8501/v1/models/ornith:predict \\
                   <label
                     className={`flex cursor-pointer items-start gap-3 rounded-xl border p-3.5 transition-all ${
                       options.includeJsonWeights
-                        ? 'border-[#E0E0DC]/30 bg-[rgba(255,255,255,0.04)]'
-                        : 'border-[rgba(255,255,255,0.06)] bg-[#161616] opacity-60'
+                        ? "border-[#E0E0DC]/30 bg-[rgba(255,255,255,0.04)]"
+                        : "border-[rgba(255,255,255,0.06)] bg-[#161616] opacity-60"
                     }`}
                   >
                     <input
                       type="checkbox"
                       checked={options.includeJsonWeights}
-                      onChange={() => toggleOption('includeJsonWeights')}
+                      onChange={() => toggleOption("includeJsonWeights")}
                       className="mt-1 h-4 w-4 rounded border-gray-700 bg-[#222] text-white focus:ring-0"
                     />
                     <div className="flex-1">
@@ -456,7 +483,8 @@ curl -X POST http://localhost:8501/v1/models/ornith:predict \\
                         </span>
                       </div>
                       <p className="mt-1 text-[11px] text-[#A3A3A0]">
-                        Strukturert JSON med W1, b1, W2, b2 og vokabularkart for direkte inferens i nettleser eller server.
+                        Strukturert JSON med W1, b1, W2, b2 og vokabularkart for
+                        direkte inferens i nettleser eller server.
                       </p>
                     </div>
                   </label>
@@ -469,7 +497,8 @@ curl -X POST http://localhost:8501/v1/models/ornith:predict \\
                   <div className="flex items-center gap-2">
                     <Layers className="h-4 w-4 text-[#8F2BFF]" />
                     <h3 className="text-xs font-bold uppercase tracking-wider text-white">
-                      2. Tilknyttede Pakkeelementer (Metadata, Evalueringsdata & Logger)
+                      2. Tilknyttede Pakkeelementer (Metadata, Evalueringsdata &
+                      Logger)
                     </h3>
                   </div>
                   <span className="text-[11px] text-[#A3A3A0]">
@@ -482,23 +511,29 @@ curl -X POST http://localhost:8501/v1/models/ornith:predict \\
                   <label
                     className={`flex cursor-pointer items-start gap-3 rounded-xl border p-3 transition-all ${
                       options.includeMetadata
-                        ? 'border-[#8F2BFF]/30 bg-[#171717]'
-                        : 'border-[rgba(255,255,255,0.06)] bg-[#141414] opacity-50'
+                        ? "border-[#8F2BFF]/30 bg-[#171717]"
+                        : "border-[rgba(255,255,255,0.06)] bg-[#141414] opacity-50"
                     }`}
                   >
                     <input
                       type="checkbox"
                       checked={options.includeMetadata}
-                      onChange={() => toggleOption('includeMetadata')}
+                      onChange={() => toggleOption("includeMetadata")}
                       className="mt-1 h-4 w-4 rounded border-gray-700 bg-[#222] text-[#8F2BFF] focus:ring-0"
                     />
                     <div>
                       <div className="flex items-center gap-2">
                         <FileText className="h-3.5 w-3.5 text-[#39D9E6]" />
-                        <span className="text-xs font-medium text-white">Modellkort & Metadata</span>
+                        <span className="text-xs font-medium text-white">
+                          Modellkort & Metadata
+                        </span>
                       </div>
                       <p className="mt-0.5 text-[11px] text-[#A3A3A0]">
-                        Inkluderer <code className="text-white">MODEL_CARD.md</code> og maskinlesbar <code className="text-white">metadata.json</code> med RAM/Flash benchmark.
+                        Inkluderer{" "}
+                        <code className="text-white">MODEL_CARD.md</code> og
+                        maskinlesbar{" "}
+                        <code className="text-white">metadata.json</code> med
+                        RAM/Flash benchmark.
                       </p>
                     </div>
                   </label>
@@ -507,23 +542,27 @@ curl -X POST http://localhost:8501/v1/models/ornith:predict \\
                   <label
                     className={`flex cursor-pointer items-start gap-3 rounded-xl border p-3 transition-all ${
                       options.includeTrainingConfig
-                        ? 'border-[#8F2BFF]/30 bg-[#171717]'
-                        : 'border-[rgba(255,255,255,0.06)] bg-[#141414] opacity-50'
+                        ? "border-[#8F2BFF]/30 bg-[#171717]"
+                        : "border-[rgba(255,255,255,0.06)] bg-[#141414] opacity-50"
                     }`}
                   >
                     <input
                       type="checkbox"
                       checked={options.includeTrainingConfig}
-                      onChange={() => toggleOption('includeTrainingConfig')}
+                      onChange={() => toggleOption("includeTrainingConfig")}
                       className="mt-1 h-4 w-4 rounded border-gray-700 bg-[#222] text-[#8F2BFF] focus:ring-0"
                     />
                     <div>
                       <div className="flex items-center gap-2">
                         <Sliders className="h-3.5 w-3.5 text-[#77F23B]" />
-                        <span className="text-xs font-medium text-white">Treningskonfigurasjon</span>
+                        <span className="text-xs font-medium text-white">
+                          Treningskonfigurasjon
+                        </span>
                       </div>
                       <p className="mt-0.5 text-[11px] text-[#A3A3A0]">
-                        <code className="text-white">training_config.json</code> med epoker, batchstørrelse, læringsrate, optimizer og split-oppsett.
+                        <code className="text-white">training_config.json</code>{" "}
+                        med epoker, batchstørrelse, læringsrate, optimizer og
+                        split-oppsett.
                       </p>
                     </div>
                   </label>
@@ -532,23 +571,30 @@ curl -X POST http://localhost:8501/v1/models/ornith:predict \\
                   <label
                     className={`flex cursor-pointer items-start gap-3 rounded-xl border p-3 transition-all ${
                       options.includeEvaluationMetrics
-                        ? 'border-[#8F2BFF]/30 bg-[#171717]'
-                        : 'border-[rgba(255,255,255,0.06)] bg-[#141414] opacity-50'
+                        ? "border-[#8F2BFF]/30 bg-[#171717]"
+                        : "border-[rgba(255,255,255,0.06)] bg-[#141414] opacity-50"
                     }`}
                   >
                     <input
                       type="checkbox"
                       checked={options.includeEvaluationMetrics}
-                      onChange={() => toggleOption('includeEvaluationMetrics')}
+                      onChange={() => toggleOption("includeEvaluationMetrics")}
                       className="mt-1 h-4 w-4 rounded border-gray-700 bg-[#222] text-[#8F2BFF] focus:ring-0"
                     />
                     <div>
                       <div className="flex items-center gap-2">
                         <BarChart3 className="h-3.5 w-3.5 text-[#B25CFF]" />
-                        <span className="text-xs font-medium text-white">Evalueringsmetrikker & Matrise</span>
+                        <span className="text-xs font-medium text-white">
+                          Evalueringsmetrikker & Matrise
+                        </span>
                       </div>
                       <p className="mt-0.5 text-[11px] text-[#A3A3A0]">
-                        Testnøyaktighet, per-klasse F1/recall, forvekslingsmatrise (<code className="text-white">confusion_matrix.json</code>) og Markdown-rapport.
+                        Testnøyaktighet, per-klasse F1/recall,
+                        forvekslingsmatrise (
+                        <code className="text-white">
+                          confusion_matrix.json
+                        </code>
+                        ) og Markdown-rapport.
                       </p>
                     </div>
                   </label>
@@ -557,23 +603,27 @@ curl -X POST http://localhost:8501/v1/models/ornith:predict \\
                   <label
                     className={`flex cursor-pointer items-start gap-3 rounded-xl border p-3 transition-all ${
                       options.includeLogs
-                        ? 'border-[#8F2BFF]/30 bg-[#171717]'
-                        : 'border-[rgba(255,255,255,0.06)] bg-[#141414] opacity-50'
+                        ? "border-[#8F2BFF]/30 bg-[#171717]"
+                        : "border-[rgba(255,255,255,0.06)] bg-[#141414] opacity-50"
                     }`}
                   >
                     <input
                       type="checkbox"
                       checked={options.includeLogs}
-                      onChange={() => toggleOption('includeLogs')}
+                      onChange={() => toggleOption("includeLogs")}
                       className="mt-1 h-4 w-4 rounded border-gray-700 bg-[#222] text-[#8F2BFF] focus:ring-0"
                     />
                     <div>
                       <div className="flex items-center gap-2">
                         <Terminal className="h-3.5 w-3.5 text-[#FF9F0A]" />
-                        <span className="text-xs font-medium text-white">Treningslogger & Telemetri</span>
+                        <span className="text-xs font-medium text-white">
+                          Treningslogger & Telemetri
+                        </span>
                       </div>
                       <p className="mt-0.5 text-[11px] text-[#A3A3A0]">
-                        Fullstendig tidsstemplet konsolllogg (<code className="text-white">training_logs.txt</code>) og tapskurver per epoke.
+                        Fullstendig tidsstemplet konsolllogg (
+                        <code className="text-white">training_logs.txt</code>)
+                        og tapskurver per epoke.
                       </p>
                     </div>
                   </label>
@@ -582,23 +632,36 @@ curl -X POST http://localhost:8501/v1/models/ornith:predict \\
                   <label
                     className={`flex cursor-pointer items-start gap-3 rounded-xl border p-3 transition-all sm:col-span-2 ${
                       options.includeScripts
-                        ? 'border-[#8F2BFF]/30 bg-[#171717]'
-                        : 'border-[rgba(255,255,255,0.06)] bg-[#141414] opacity-50'
+                        ? "border-[#8F2BFF]/30 bg-[#171717]"
+                        : "border-[rgba(255,255,255,0.06)] bg-[#141414] opacity-50"
                     }`}
                   >
                     <input
                       type="checkbox"
                       checked={options.includeScripts}
-                      onChange={() => toggleOption('includeScripts')}
+                      onChange={() => toggleOption("includeScripts")}
                       className="mt-1 h-4 w-4 rounded border-gray-700 bg-[#222] text-[#8F2BFF] focus:ring-0"
                     />
                     <div>
                       <div className="flex items-center gap-2">
                         <Code2 className="h-3.5 w-3.5 text-[#39D9E6]" />
-                        <span className="text-xs font-medium text-white">Hurtigstartskript (Python, Arduino, Edge REST)</span>
+                        <span className="text-xs font-medium text-white">
+                          Hurtigstartskript (Python, Arduino, Edge REST)
+                        </span>
                       </div>
                       <p className="mt-0.5 text-[11px] text-[#A3A3A0]">
-                        Inkluderer kjørbare <code className="text-[#39D9E6]">infer_tflite.py</code>, <code className="text-[#B25CFF]">load_saved_model.py</code>, <code className="text-[#77F23B]">arduino_example.ino</code> og lokal <code className="text-white">edge_server.py</code> mikroservice.
+                        Inkluderer kjørbare{" "}
+                        <code className="text-[#39D9E6]">infer_tflite.py</code>,{" "}
+                        <code className="text-[#B25CFF]">
+                          load_saved_model.py
+                        </code>
+                        ,{" "}
+                        <code className="text-[#77F23B]">
+                          arduino_example.ino
+                        </code>{" "}
+                        og lokal{" "}
+                        <code className="text-white">edge_server.py</code>{" "}
+                        mikroservice.
                       </p>
                     </div>
                   </label>
@@ -607,7 +670,7 @@ curl -X POST http://localhost:8501/v1/models/ornith:predict \\
             </>
           )}
 
-          {activeTab === 'manifest' && (
+          {activeTab === "manifest" && (
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <div>
@@ -615,33 +678,43 @@ curl -X POST http://localhost:8501/v1/models/ornith:predict \\
                     Filer som inkluderes i pakken ({filteredFiles.length} filer)
                   </h3>
                   <p className="text-[11px] text-[#A3A3A0]">
-                    Beregnet pakkestørrelse: <span className="font-mono font-bold text-[#77F23B]">{formatBytes(estimatedTotalSize)}</span>
+                    Beregnet pakkestørrelse:{" "}
+                    <span className="font-mono font-bold text-[#77F23B]">
+                      {formatBytes(estimatedTotalSize)}
+                    </span>
                   </p>
                 </div>
               </div>
 
               <div className="divide-y divide-[rgba(255,255,255,0.04)] rounded-xl border border-[rgba(255,255,255,0.06)] bg-[#141414] overflow-hidden">
                 {filteredFiles.map((file, idx) => (
-                  <div key={idx} className="flex items-center justify-between p-3 text-xs">
+                  <div
+                    key={idx}
+                    className="flex items-center justify-between p-3 text-xs"
+                  >
                     <div className="flex items-center gap-2.5">
                       <span
                         className={`rounded px-1.5 py-0.5 font-mono text-[9px] uppercase font-bold ${
-                          file.category === 'model'
-                            ? 'bg-[#39D9E6]/20 text-[#39D9E6]'
-                            : file.category === 'metadata'
-                            ? 'bg-[#8F2BFF]/20 text-[#B25CFF]'
-                            : file.category === 'training'
-                            ? 'bg-[#77F23B]/20 text-[#77F23B]'
-                            : file.category === 'evaluation'
-                            ? 'bg-[#FF9F0A]/20 text-[#FF9F0A]'
-                            : 'bg-[#555]/20 text-[#A3A3A0]'
+                          file.category === "model"
+                            ? "bg-[#39D9E6]/20 text-[#39D9E6]"
+                            : file.category === "metadata"
+                              ? "bg-[#8F2BFF]/20 text-[#B25CFF]"
+                              : file.category === "training"
+                                ? "bg-[#77F23B]/20 text-[#77F23B]"
+                                : file.category === "evaluation"
+                                  ? "bg-[#FF9F0A]/20 text-[#FF9F0A]"
+                                  : "bg-[#555]/20 text-[#A3A3A0]"
                         }`}
                       >
                         {file.category}
                       </span>
                       <div>
-                        <span className="font-mono font-semibold text-white">{file.path}</span>
-                        <p className="text-[11px] text-[#888]">{file.description}</p>
+                        <span className="font-mono font-semibold text-white">
+                          {file.path}
+                        </span>
+                        <p className="text-[11px] text-[#888]">
+                          {file.description}
+                        </p>
                       </div>
                     </div>
                     <span className="font-mono text-[11px] text-[#A3A3A0]">
@@ -653,46 +726,46 @@ curl -X POST http://localhost:8501/v1/models/ornith:predict \\
             </div>
           )}
 
-          {activeTab === 'snippets' && (
+          {activeTab === "snippets" && (
             <div className="space-y-4">
               {/* Snippet Tabs */}
               <div className="flex items-center gap-1 border-b border-[rgba(255,255,255,0.06)] pb-2">
                 <button
-                  onClick={() => setSnippetTab('python-tflite')}
+                  onClick={() => setSnippetTab("python-tflite")}
                   className={`rounded-lg px-3 py-1 text-xs font-medium transition-colors ${
-                    snippetTab === 'python-tflite'
-                      ? 'bg-[#1E1E1E] text-[#39D9E6] border border-[#39D9E6]/40'
-                      : 'text-[#888] hover:text-white'
+                    snippetTab === "python-tflite"
+                      ? "bg-[#1E1E1E] text-[#39D9E6] border border-[#39D9E6]/40"
+                      : "text-[#888] hover:text-white"
                   }`}
                 >
                   Python (TFLite)
                 </button>
                 <button
-                  onClick={() => setSnippetTab('savedmodel')}
+                  onClick={() => setSnippetTab("savedmodel")}
                   className={`rounded-lg px-3 py-1 text-xs font-medium transition-colors ${
-                    snippetTab === 'savedmodel'
-                      ? 'bg-[#1E1E1E] text-[#B25CFF] border border-[#8F2BFF]/40'
-                      : 'text-[#888] hover:text-white'
+                    snippetTab === "savedmodel"
+                      ? "bg-[#1E1E1E] text-[#B25CFF] border border-[#8F2BFF]/40"
+                      : "text-[#888] hover:text-white"
                   }`}
                 >
                   TensorFlow SavedModel
                 </button>
                 <button
-                  onClick={() => setSnippetTab('arduino')}
+                  onClick={() => setSnippetTab("arduino")}
                   className={`rounded-lg px-3 py-1 text-xs font-medium transition-colors ${
-                    snippetTab === 'arduino'
-                      ? 'bg-[#1E1E1E] text-[#77F23B] border border-[#77F23B]/40'
-                      : 'text-[#888] hover:text-white'
+                    snippetTab === "arduino"
+                      ? "bg-[#1E1E1E] text-[#77F23B] border border-[#77F23B]/40"
+                      : "text-[#888] hover:text-white"
                   }`}
                 >
                   Arduino / ESP32 (C/C++)
                 </button>
                 <button
-                  onClick={() => setSnippetTab('serving')}
+                  onClick={() => setSnippetTab("serving")}
                   className={`rounded-lg px-3 py-1 text-xs font-medium transition-colors ${
-                    snippetTab === 'serving'
-                      ? 'bg-[#1E1E1E] text-white border border-[rgba(255,255,255,0.2)]'
-                      : 'text-[#888] hover:text-white'
+                    snippetTab === "serving"
+                      ? "bg-[#1E1E1E] text-white border border-[rgba(255,255,255,0.2)]"
+                      : "text-[#888] hover:text-white"
                   }`}
                 >
                   Docker TF Serving
@@ -704,13 +777,13 @@ curl -X POST http://localhost:8501/v1/models/ornith:predict \\
                 <button
                   onClick={() => {
                     const text =
-                      snippetTab === 'python-tflite'
+                      snippetTab === "python-tflite"
                         ? pythonSnippet
-                        : snippetTab === 'savedmodel'
-                        ? savedModelSnippet
-                        : snippetTab === 'arduino'
-                        ? arduinoSnippet
-                        : servingSnippet;
+                        : snippetTab === "savedmodel"
+                          ? savedModelSnippet
+                          : snippetTab === "arduino"
+                            ? arduinoSnippet
+                            : servingSnippet;
                     handleCopy(snippetTab, text);
                   }}
                   className="absolute right-3 top-3 flex items-center gap-1 rounded bg-[#222] px-2.5 py-1 text-[11px] text-[#A3A3A0] transition-colors hover:bg-[#333] hover:text-white"
@@ -729,10 +802,10 @@ curl -X POST http://localhost:8501/v1/models/ornith:predict \\
                 </button>
 
                 <pre className="font-mono text-[11px] text-[#E0E0DC] overflow-x-auto leading-5 custom-scrollbar pr-20">
-                  {snippetTab === 'python-tflite' && pythonSnippet}
-                  {snippetTab === 'savedmodel' && savedModelSnippet}
-                  {snippetTab === 'arduino' && arduinoSnippet}
-                  {snippetTab === 'serving' && servingSnippet}
+                  {snippetTab === "python-tflite" && pythonSnippet}
+                  {snippetTab === "savedmodel" && savedModelSnippet}
+                  {snippetTab === "arduino" && arduinoSnippet}
+                  {snippetTab === "serving" && servingSnippet}
                 </pre>
               </div>
             </div>
@@ -744,10 +817,17 @@ curl -X POST http://localhost:8501/v1/models/ornith:predict \\
           <div className="flex items-center gap-3 text-xs text-[#A3A3A0]">
             <div className="flex items-center gap-1.5">
               <FolderArchive className="h-4 w-4 text-[#8F2BFF]" />
-              <span>Pakkeformat: <strong className="text-white">ZIP (.zip)</strong></span>
+              <span>
+                Pakkeformat: <strong className="text-white">ZIP (.zip)</strong>
+              </span>
             </div>
             <span>•</span>
-            <span>Beregnet størrelse: <strong className="text-[#77F23B]">{formatBytes(estimatedTotalSize)}</strong></span>
+            <span>
+              Beregnet størrelse:{" "}
+              <strong className="text-[#77F23B]">
+                {formatBytes(estimatedTotalSize)}
+              </strong>
+            </span>
           </div>
 
           <div className="flex items-center gap-3">
@@ -765,7 +845,9 @@ curl -X POST http://localhost:8501/v1/models/ornith:predict \\
             >
               <Download className="h-4 w-4" />
               <span>
-                {isDownloading ? 'Genererer og laster ned...' : 'Last ned Komplett Modellpakke (.ZIP)'}
+                {isDownloading
+                  ? "Genererer og laster ned..."
+                  : "Last ned Komplett Modellpakke (.ZIP)"}
               </span>
             </button>
           </div>

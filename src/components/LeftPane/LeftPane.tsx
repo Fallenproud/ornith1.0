@@ -2,16 +2,16 @@
  * ULTIMATE ORNITH 1.0 — Left Pane (Conversation & Control)
  */
 
-import React, { useRef, useEffect } from 'react';
-import { MessageItem } from './MessageItem';
-import { PromptComposer } from './PromptComposer';
+import React, { useRef, useEffect } from "react";
+import { MessageItem } from "./MessageItem";
+import { PromptComposer } from "./PromptComposer";
 import {
   ChatMessage,
   ProjectMetadata,
   DatasetMetadata,
   TrainingRun,
   RightPaneMode,
-} from '../../types';
+} from "../../types";
 import {
   Layers,
   HardDrive,
@@ -20,7 +20,7 @@ import {
   AlertCircle,
   Play,
   ArrowRight,
-} from 'lucide-react';
+} from "lucide-react";
 
 interface LeftPaneProps {
   messages: ChatMessage[];
@@ -50,7 +50,7 @@ export const LeftPane: React.FC<LeftPaneProps> = ({
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isLoading]);
 
   return (
@@ -61,18 +61,18 @@ export const LeftPane: React.FC<LeftPaneProps> = ({
           <div className="flex items-center gap-2">
             <span className="flex h-2 w-2 rounded-full bg-[#77F23B]" />
             <h2 className="text-xs font-semibold text-white">
-              {activeProject?.name || 'Aktivt Prosjekt'}
+              {activeProject?.name || "Aktivt Prosjekt"}
             </h2>
           </div>
           <span className="font-mono text-[10px] text-[#A3A3A0]">
-            {activeProject?.targetArchitecture || 'tinyml-dense'}
+            {activeProject?.targetArchitecture || "tinyml-dense"}
           </span>
         </div>
 
         {/* Mini stats row */}
         <div className="mt-2 grid grid-cols-2 gap-2 text-[11px]">
           <div
-            onClick={() => onNavigateToMode('dataset')}
+            onClick={() => onNavigateToMode("dataset")}
             className="flex cursor-pointer items-center justify-between rounded-md border border-[rgba(255,255,255,0.06)] bg-[#1A1A1A] p-1.5 transition-colors hover:border-[#8F2BFF]/40"
           >
             <div className="flex items-center gap-1.5">
@@ -85,7 +85,7 @@ export const LeftPane: React.FC<LeftPaneProps> = ({
           </div>
 
           <div
-            onClick={() => onNavigateToMode('training')}
+            onClick={() => onNavigateToMode("training")}
             className="flex cursor-pointer items-center justify-between rounded-md border border-[rgba(255,255,255,0.06)] bg-[#1A1A1A] p-1.5 transition-colors hover:border-[#8F2BFF]/40"
           >
             <div className="flex items-center gap-1.5">
@@ -94,29 +94,32 @@ export const LeftPane: React.FC<LeftPaneProps> = ({
             </div>
             <span
               className={`font-mono font-medium ${
-                activeRun?.status === 'running'
-                  ? 'text-[#39D9E6] animate-pulse'
-                  : activeRun?.status === 'completed'
-                  ? 'text-[#77F23B]'
-                  : 'text-[#A3A3A0]'
+                activeRun?.status === "running"
+                  ? "text-[#39D9E6] animate-pulse"
+                  : activeRun?.status === "completed"
+                    ? "text-[#77F23B]"
+                    : "text-[#A3A3A0]"
               }`}
             >
-              {activeRun?.status === 'running'
+              {activeRun?.status === "running"
                 ? `Trener ${activeRun.progressPercent}%`
-                : activeRun?.status === 'completed'
-                ? 'Klar'
-                : 'Klar for start'}
+                : activeRun?.status === "completed"
+                  ? "Klar"
+                  : "Klar for start"}
             </span>
           </div>
         </div>
 
         {/* Active training quick bar */}
-        {activeRun && activeRun.status === 'running' && (
+        {activeRun && activeRun.status === "running" && (
           <div className="mt-2 rounded-md border border-[#39D9E6]/30 bg-[#39D9E6]/10 p-2">
             <div className="flex items-center justify-between text-[11px]">
-              <span className="font-medium text-[#39D9E6]">Aktiv Trening pågår...</span>
+              <span className="font-medium text-[#39D9E6]">
+                Aktiv Trening pågår...
+              </span>
               <span className="font-mono text-white">
-                Epoke {activeRun.currentEpoch}/{activeRun.totalEpochs} ({activeRun.progressPercent}%)
+                Epoke {activeRun.currentEpoch}/{activeRun.totalEpochs} (
+                {activeRun.progressPercent}%)
               </span>
             </div>
             <div className="mt-1.5 h-1 w-full overflow-hidden rounded-full bg-[#111]">
@@ -133,7 +136,7 @@ export const LeftPane: React.FC<LeftPaneProps> = ({
       <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
         {messages.map((msg) => (
           <MessageItem
-            key={msg.id}
+            key={msg.id || `msg-${msg.timestamp}-${msg.sender}`}
             message={msg}
             onRetry={(text) => onSendMessage(text)}
             onNavigateToMode={onNavigateToMode}

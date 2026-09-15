@@ -1,25 +1,29 @@
 /**
  * ULTIMATE ORNITH 1.0 — Real-Time Mathematical SVG Curves
- * 
+ *
  * Plots actual loss and accuracy curves from epoch metrics with high precision.
  */
 
-import React from 'react';
-import { EpochMetric } from '../types';
+import React from "react";
+import { EpochMetric } from "../types";
 
 interface SvgLossChartProps {
   history: EpochMetric[];
   height?: number;
 }
 
-export const SvgLossChart: React.FC<SvgLossChartProps> = ({ history, height = 220 }) => {
+export const SvgLossChart: React.FC<SvgLossChartProps> = ({
+  history,
+  height = 220,
+}) => {
   if (!history || history.length === 0) {
     return (
       <div
         className="flex items-center justify-center rounded-lg border border-[rgba(255,255,255,0.06)] bg-[#111111]/70 p-6 text-center text-xs text-[#A3A3A0]"
         style={{ height }}
       >
-        Ingen treningsmålinger ennå. Start en treningsøkt for å se sanntids tapskurve (Loss).
+        Ingen treningsmålinger ennå. Start en treningsøkt for å se sanntids
+        tapskurve (Loss).
       </div>
     );
   }
@@ -40,20 +44,33 @@ export const SvgLossChart: React.FC<SvgLossChartProps> = ({ history, height = 22
   const chartHeight = height - padding.top - padding.bottom;
 
   const getX = (epoch: number) => {
-    return padding.left + ((epoch - minEpoch) / (maxEpoch - minEpoch || 1)) * chartWidth;
+    return (
+      padding.left +
+      ((epoch - minEpoch) / (maxEpoch - minEpoch || 1)) * chartWidth
+    );
   };
 
   const getY = (val: number) => {
-    return padding.top + chartHeight - ((val - minLoss) / (maxLoss - minLoss || 1)) * chartHeight;
+    return (
+      padding.top +
+      chartHeight -
+      ((val - minLoss) / (maxLoss - minLoss || 1)) * chartHeight
+    );
   };
 
   const trainPath = history
-    .map((h, i) => `${i === 0 ? 'M' : 'L'} ${getX(h.epoch).toFixed(1)} ${getY(h.loss).toFixed(1)}`)
-    .join(' ');
+    .map(
+      (h, i) =>
+        `${i === 0 ? "M" : "L"} ${getX(h.epoch).toFixed(1)} ${getY(h.loss).toFixed(1)}`,
+    )
+    .join(" ");
 
   const valPath = history
-    .map((h, i) => `${i === 0 ? 'M' : 'L'} ${getX(h.epoch).toFixed(1)} ${getY(h.valLoss).toFixed(1)}`)
-    .join(' ');
+    .map(
+      (h, i) =>
+        `${i === 0 ? "M" : "L"} ${getX(h.epoch).toFixed(1)} ${getY(h.valLoss).toFixed(1)}`,
+    )
+    .join(" ");
 
   const yTicks = [0, maxLoss * 0.25, maxLoss * 0.5, maxLoss * 0.75, maxLoss];
 
@@ -75,7 +92,10 @@ export const SvgLossChart: React.FC<SvgLossChartProps> = ({ history, height = 22
         </span>
       </div>
 
-      <svg viewBox={`0 0 ${width} ${height}`} className="w-full overflow-visible">
+      <svg
+        viewBox={`0 0 ${width} ${height}`}
+        className="w-full overflow-visible"
+      >
         {/* Horizontal gridlines */}
         {yTicks.map((val, idx) => (
           <g key={idx}>
@@ -123,7 +143,12 @@ export const SvgLossChart: React.FC<SvgLossChartProps> = ({ history, height = 22
         {history.map((h) => (
           <g key={h.epoch}>
             <circle cx={getX(h.epoch)} cy={getY(h.loss)} r="3" fill="#8F2BFF" />
-            <circle cx={getX(h.epoch)} cy={getY(h.valLoss)} r="2.5" fill="#77F23B" />
+            <circle
+              cx={getX(h.epoch)}
+              cy={getY(h.valLoss)}
+              r="2.5"
+              fill="#77F23B"
+            />
           </g>
         ))}
       </svg>
@@ -131,7 +156,10 @@ export const SvgLossChart: React.FC<SvgLossChartProps> = ({ history, height = 22
   );
 };
 
-export const SvgAccuracyChart: React.FC<SvgLossChartProps> = ({ history, height = 220 }) => {
+export const SvgAccuracyChart: React.FC<SvgLossChartProps> = ({
+  history,
+  height = 220,
+}) => {
   if (!history || history.length === 0) {
     return (
       <div
@@ -154,7 +182,10 @@ export const SvgAccuracyChart: React.FC<SvgLossChartProps> = ({ history, height 
   const chartHeight = height - padding.top - padding.bottom;
 
   const getX = (epoch: number) => {
-    return padding.left + ((epoch - minEpoch) / (maxEpoch - minEpoch || 1)) * chartWidth;
+    return (
+      padding.left +
+      ((epoch - minEpoch) / (maxEpoch - minEpoch || 1)) * chartWidth
+    );
   };
 
   const getY = (acc: number) => {
@@ -163,12 +194,18 @@ export const SvgAccuracyChart: React.FC<SvgLossChartProps> = ({ history, height 
   };
 
   const trainPath = history
-    .map((h, i) => `${i === 0 ? 'M' : 'L'} ${getX(h.epoch).toFixed(1)} ${getY(h.accuracy).toFixed(1)}`)
-    .join(' ');
+    .map(
+      (h, i) =>
+        `${i === 0 ? "M" : "L"} ${getX(h.epoch).toFixed(1)} ${getY(h.accuracy).toFixed(1)}`,
+    )
+    .join(" ");
 
   const valPath = history
-    .map((h, i) => `${i === 0 ? 'M' : 'L'} ${getX(h.epoch).toFixed(1)} ${getY(h.valAccuracy).toFixed(1)}`)
-    .join(' ');
+    .map(
+      (h, i) =>
+        `${i === 0 ? "M" : "L"} ${getX(h.epoch).toFixed(1)} ${getY(h.valAccuracy).toFixed(1)}`,
+    )
+    .join(" ");
 
   return (
     <div className="w-full">
@@ -188,7 +225,10 @@ export const SvgAccuracyChart: React.FC<SvgLossChartProps> = ({ history, height 
         </span>
       </div>
 
-      <svg viewBox={`0 0 ${width} ${height}`} className="w-full overflow-visible">
+      <svg
+        viewBox={`0 0 ${width} ${height}`}
+        className="w-full overflow-visible"
+      >
         {[0, 0.25, 0.5, 0.75, 1.0].map((val, idx) => (
           <g key={idx}>
             <line
@@ -231,8 +271,18 @@ export const SvgAccuracyChart: React.FC<SvgLossChartProps> = ({ history, height 
 
         {history.map((h) => (
           <g key={h.epoch}>
-            <circle cx={getX(h.epoch)} cy={getY(h.accuracy)} r="3" fill="#39D9E6" />
-            <circle cx={getX(h.epoch)} cy={getY(h.valAccuracy)} r="2.5" fill="#B25CFF" />
+            <circle
+              cx={getX(h.epoch)}
+              cy={getY(h.accuracy)}
+              r="3"
+              fill="#39D9E6"
+            />
+            <circle
+              cx={getX(h.epoch)}
+              cy={getY(h.valAccuracy)}
+              r="2.5"
+              fill="#B25CFF"
+            />
           </g>
         ))}
       </svg>

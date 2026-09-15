@@ -31,11 +31,24 @@ service cloud.firestore {
     match /runs/{runId} {
       allow read: if true;
       allow write: if isSignedIn() || request.auth == null;
+
+      match /artifacts/{artifactId} {
+        allow read, write: if true;
+      }
+    }
+
+    match /artifacts/{artifactId} {
+      allow read: if true;
+      allow write: if isSignedIn() || request.auth == null;
     }
 
     match /conversations/{conversationId}/messages/{messageId} {
       allow read: if true;
       allow write: if true;
+    }
+
+    match /telemetry_resources/{docId} {
+      allow read, write: if true;
     }
 
     match /test/{docId} {

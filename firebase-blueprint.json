@@ -81,9 +81,51 @@
         "updatedAt": { "type": "string" }
       },
       "required": ["id", "name", "type", "enabled", "severity"]
+    },
+    "modelArtifact": {
+      "title": "ModelArtifact",
+      "description": "Exported TinyML model binary, C-header or packaged artifact with Firestore export status",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "runId": { "type": "string" },
+        "name": { "type": "string" },
+        "fileType": { "type": "string" },
+        "status": { "type": "string", "enum": ["ready", "exporting", "pending", "failed"] },
+        "readinessState": { "type": "string", "enum": ["ready", "exporting", "stale"] },
+        "sizeBytes": { "type": "number" },
+        "downloadUrl": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "name", "fileType", "status"]
+    },
+    "resourceTelemetry": {
+      "title": "ResourceTelemetry",
+      "description": "Real-time training environment RAM and CPU utilization metrics",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "timestamp": { "type": "string" },
+        "cpuPercent": { "type": "number" },
+        "ramUsedMb": { "type": "number" },
+        "ramTotalMb": { "type": "number" },
+        "ramPercent": { "type": "number" },
+        "heapUsedMb": { "type": "number" },
+        "heapTotalMb": { "type": "number" },
+        "trainingStatus": { "type": "string", "enum": ["idle", "running", "completed", "cancelled"] },
+        "activeRunId": { "type": "string" },
+        "activeEpoch": { "type": "number" },
+        "totalEpochs": { "type": "number" }
+      },
+      "required": ["timestamp", "cpuPercent", "ramUsedMb", "ramPercent"]
     }
   },
   "firestore": {
+    "/telemetry_resources/{docId}": {
+      "schema": "resourceTelemetry",
+      "description": "Live real-time resource utilization stream for training environment"
+    },
     "/projects/{projectId}": {
       "schema": "project",
       "description": "TinyML projects collection"
@@ -103,6 +145,14 @@
     "/runs/{runId}": {
       "schema": "trainingRun",
       "description": "TinyML training run metrics collection"
+    },
+    "/runs/{runId}/artifacts/{artifactId}": {
+      "schema": "modelArtifact",
+      "description": "Run-specific model export artifacts"
+    },
+    "/artifacts/{artifactId}": {
+      "schema": "modelArtifact",
+      "description": "Global export artifacts collection"
     },
     "/conversations/{conversationId}/messages/{messageId}": {
       "schema": "chatMessage",

@@ -2,16 +2,19 @@
  * ULTIMATE ORNITH 1.0 — User Authentication Badge Component
  */
 
-import React from 'react';
-import { Shield, ShieldCheck, Lock, LogIn, ChevronDown } from 'lucide-react';
-import { AuthUser } from '../types';
+import React from "react";
+import { Shield, ShieldCheck, Lock, LogIn, ChevronDown } from "lucide-react";
+import { AuthUser } from "../types";
 
 interface UserAuthBadgeProps {
   user: AuthUser | null;
   onOpenAuthModal: () => void;
 }
 
-export const UserAuthBadge: React.FC<UserAuthBadgeProps> = ({ user, onOpenAuthModal }) => {
+export const UserAuthBadge: React.FC<UserAuthBadgeProps> = ({
+  user,
+  onOpenAuthModal,
+}) => {
   if (!user) {
     return (
       <button
@@ -34,18 +37,18 @@ export const UserAuthBadge: React.FC<UserAuthBadgeProps> = ({ user, onOpenAuthMo
       {user.photoURL ? (
         <img
           src={user.photoURL}
-          alt={user.displayName || 'Bruker'}
+          alt={user.displayName || "Bruker"}
           className="h-5 w-5 rounded-full border border-[#8F2BFF]/50 object-cover"
           referrerPolicy="no-referrer"
         />
       ) : (
         <div className="flex h-5 w-5 items-center justify-center rounded-full bg-[#8F2BFF]/30 font-mono text-[10px] font-bold text-[#39D9E6]">
-          {(user.displayName || user.email || 'U')[0].toUpperCase()}
+          {(user.displayName || user.email || "U")[0].toUpperCase()}
         </div>
       )}
       <div className="flex flex-col text-left">
         <span className="max-w-[100px] truncate text-[11px] font-medium leading-tight">
-          {user.displayName || user.email?.split('@')[0] || 'Bruker'}
+          {user.displayName || user.email?.split("@")[0] || "Bruker"}
         </span>
       </div>
       <ShieldCheck className="h-3.5 w-3.5 text-[#77F23B]" />

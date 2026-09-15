@@ -2,9 +2,9 @@
  * ULTIMATE ORNITH 1.0 — Project Creation Modal
  */
 
-import React, { useState } from 'react';
-import { X, FolderPlus, Cpu, Layers } from 'lucide-react';
-import { ProjectMetadata, DatasetMetadata } from '../types';
+import React, { useState } from "react";
+import { X, FolderPlus, Cpu, Layers } from "lucide-react";
+import { ProjectMetadata, DatasetMetadata } from "../types";
 
 interface ProjectModalProps {
   isOpen: boolean;
@@ -19,10 +19,14 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
   onCreate,
   datasets,
 }) => {
-  const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
-  const [targetArchitecture, setTargetArchitecture] = useState<'tinyml-dense' | 'tinyml-cnn1d'>('tinyml-dense');
-  const [selectedDatasetId, setSelectedDatasetId] = useState(datasets[0]?.id || '');
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+  const [targetArchitecture, setTargetArchitecture] = useState<
+    "tinyml-dense" | "tinyml-cnn1d"
+  >("tinyml-dense");
+  const [selectedDatasetId, setSelectedDatasetId] = useState(
+    datasets[0]?.id || "",
+  );
 
   if (!isOpen) return null;
 
@@ -31,13 +35,14 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
     if (!name.trim()) return;
     onCreate({
       name: name.trim(),
-      description: description.trim() || 'Lokalt TinyML eksperiment for kantprosessering.',
+      description:
+        description.trim() || "Lokalt TinyML eksperiment for kantprosessering.",
       targetArchitecture,
       datasetId: selectedDatasetId,
-      locale: 'nb-NO',
+      locale: "nb-NO",
     });
-    setName('');
-    setDescription('');
+    setName("");
+    setDescription("");
     onClose();
   };
 
@@ -47,7 +52,9 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
         <div className="mb-5 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <FolderPlus className="h-5 w-5 text-[#8F2BFF]" />
-            <h2 className="text-sm font-bold text-white">Opprett Nytt Norsk Prosjekt</h2>
+            <h2 className="text-sm font-bold text-white">
+              Opprett Nytt Norsk Prosjekt
+            </h2>
           </div>
           <button onClick={onClose} className="text-[#888] hover:text-white">
             <X className="h-4 w-4" />
@@ -56,7 +63,9 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
 
         <form onSubmit={handleSubmit} className="space-y-4 text-xs">
           <div>
-            <label className="block font-medium text-[#E0E0DC]">Prosjektnavn</label>
+            <label className="block font-medium text-[#E0E0DC]">
+              Prosjektnavn
+            </label>
             <input
               type="text"
               required
@@ -68,7 +77,9 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
           </div>
 
           <div>
-            <label className="block font-medium text-[#E0E0DC]">Beskrivelse</label>
+            <label className="block font-medium text-[#E0E0DC]">
+              Beskrivelse
+            </label>
             <textarea
               rows={2}
               placeholder="Beskriv formålet med modellen..."
@@ -79,19 +90,27 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
           </div>
 
           <div>
-            <label className="block font-medium text-[#E0E0DC]">Målarkitektur</label>
+            <label className="block font-medium text-[#E0E0DC]">
+              Målarkitektur
+            </label>
             <select
               value={targetArchitecture}
               onChange={(e) => setTargetArchitecture(e.target.value as any)}
               className="mt-1 w-full rounded-lg border border-[rgba(255,255,255,0.08)] bg-[#1A1A1A] p-2.5 text-white focus:outline-none"
             >
-              <option value="tinyml-dense">TinyML Dense (Softmax, &lt; 8 KB RAM)</option>
-              <option value="tinyml-cnn1d">TinyML 1D-CNN (Edge n-gram, &lt; 16 KB RAM)</option>
+              <option value="tinyml-dense">
+                TinyML Dense (Softmax, &lt; 8 KB RAM)
+              </option>
+              <option value="tinyml-cnn1d">
+                TinyML 1D-CNN (Edge n-gram, &lt; 16 KB RAM)
+              </option>
             </select>
           </div>
 
           <div>
-            <label className="block font-medium text-[#E0E0DC]">Koblet Datasett</label>
+            <label className="block font-medium text-[#E0E0DC]">
+              Koblet Datasett
+            </label>
             <select
               value={selectedDatasetId}
               onChange={(e) => setSelectedDatasetId(e.target.value)}

@@ -1,18 +1,18 @@
 /**
  * ULTIMATE ORNITH 1.0 — Local TinyML Training Workspace
- * 
+ *
  * Two-pane canonical workspace with real-time SSE telemetry, Norwegian NLP,
  * full embedded C-export, dataset inspection, and Gemini assistance.
  */
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Header } from './components/Header';
-import { LeftPane } from './components/LeftPane/LeftPane';
-import { RightPane } from './components/RightPane/RightPane';
-import { SplashLoader } from './components/SplashLoader';
-import { ProjectModal } from './components/ProjectModal';
-import { UploadDatasetModal } from './components/UploadDatasetModal';
-import { AuthModal } from './components/AuthModal';
+import React, { useState, useEffect, useRef, useCallback } from "react";
+import { Header } from "./components/Header";
+import { LeftPane } from "./components/LeftPane/LeftPane";
+import { RightPane } from "./components/RightPane/RightPane";
+import { SplashLoader } from "./components/SplashLoader";
+import { ProjectModal } from "./components/ProjectModal";
+import { UploadDatasetModal } from "./components/UploadDatasetModal";
+import { AuthModal } from "./components/AuthModal";
 import {
   ProjectMetadata,
   DatasetMetadata,
@@ -22,57 +22,77 @@ import {
   RuntimeSystemStatus,
   TrainingHyperparameters,
   AuthUser,
-} from './types';
-import { API } from './lib/api';
-import { initAuthListener, getAuthSession, saveAuthSession } from './lib/auth';
-import { testFirebaseConnection, db, handleFirestoreError, OperationType } from './lib/firebase';
-import { runFirestoreMigration } from './lib/migrate';
-import { recordSnapshotPerformance } from './lib/telemetry';
-import { collection, onSnapshot, query, orderBy, limit } from 'firebase/firestore';
+} from "./types";
+import { API } from "./lib/api";
+import { initAuthListener, getAuthSession, saveAuthSession } from "./lib/auth";
+import {
+  testFirebaseConnection,
+  db,
+  handleFirestoreError,
+  OperationType,
+} from "./lib/firebase";
+import { runFirestoreMigration } from "./lib/migrate";
+import { recordSnapshotPerformance } from "./lib/telemetry";
+import {
+  collection,
+  onSnapshot,
+  query,
+  orderBy,
+  limit,
+} from "firebase/firestore";
 
 let idCounter = 0;
-function generateUniqueId(prefix: string = 'msg'): string {
+function generateUniqueId(prefix: string = "msg"): string {
   idCounter += 1;
-  const rand = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 10);
+  const rand =
+    typeof crypto !== "undefined" && crypto.randomUUID
+      ? crypto.randomUUID()
+      : Math.random().toString(36).substring(2, 10);
   return `${prefix}-${Date.now()}-${idCounter}-${rand}`;
 }
 
 export default function App() {
   // Boot & system status
   const [isBooting, setIsBooting] = useState(true);
-  const [systemStatus, setSystemStatus] = useState<RuntimeSystemStatus | null>(null);
+  const [systemStatus, setSystemStatus] = useState<RuntimeSystemStatus | null>(
+    null,
+  );
 
   // Projects & Datasets
   const [projects, setProjects] = useState<ProjectMetadata[]>([]);
-  const [activeProject, setActiveProject] = useState<ProjectMetadata | null>(null);
+  const [activeProject, setActiveProject] = useState<ProjectMetadata | null>(
+    null,
+  );
   const [datasets, setDatasets] = useState<DatasetMetadata[]>([]);
-  const [activeDataset, setActiveDataset] = useState<DatasetMetadata | null>(null);
+  const [activeDataset, setActiveDataset] = useState<DatasetMetadata | null>(
+    null,
+  );
 
   // Active Training Run & Telemetry
   const [activeRun, setActiveRun] = useState<TrainingRun | null>(null);
 
   // UI state & Panes
   const [splitRatio, setSplitRatio] = useState<number>(() => {
-    const saved = localStorage.getItem('ornith_split_ratio');
+    const saved = localStorage.getItem("ornith_split_ratio");
     return saved ? parseFloat(saved) : 0.36; // 36% left pane by default
   });
   const [isDraggingDivider, setIsDraggingDivider] = useState(false);
-  const [mobileTab, setMobileTab] = useState<'left' | 'right'>('left');
-  const [rightPaneMode, setRightPaneMode] = useState<RightPaneMode>('dataset');
+  const [mobileTab, setMobileTab] = useState<"left" | "right">("left");
+  const [rightPaneMode, setRightPaneMode] = useState<RightPaneMode>("dataset");
 
   // Theme & Model controls
   const [isDark, setIsDark] = useState(true);
-  const [selectedModel, setSelectedModel] = useState('gemini-3.8-flash');
+  const [selectedModel, setSelectedModel] = useState("gemini-3.8-flash");
   const [useThinking, setUseThinking] = useState(false);
 
   // Conversation timeline
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
-      id: 'welcome-1',
-      sender: 'model',
+      id: "welcome-1",
+      sender: "model",
       text: `Velkommen til **ULTIMATE ORNITH 1.0** — din lokale arbeidsflate for TinyML-utvikling og embedded kantprosessering.\n\nJeg er forhåndskonfigurert for **norsk naturlig språk (Bokmål / Nynorsk)** med full støtte for **æ, ø og å**, sammensatte ord og mikrokontrollere (Arduino Nano 33 BLE, ESP32, STM32).\n\nHva ønsker du å gjøre først? Du kan analysere det inkluderte smart-hjem datasettet, justere treningshyperparametre eller starte en ekte treningsøkt.`,
       timestamp: new Date().toISOString(),
-      modelUsed: 'Ornith Engine',
+      modelUsed: "Ornith Engine",
     },
   ]);
   const [isAiLoading, setIsAiLoading] = useState(false);
@@ -81,7 +101,9 @@ export default function App() {
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
-  const [authUser, setAuthUser] = useState<AuthUser | null>(() => getAuthSession());
+  const [authUser, setAuthUser] = useState<AuthUser | null>(() =>
+    getAuthSession(),
+  );
 
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -108,7 +130,7 @@ export default function App() {
     const initData = async () => {
       try {
         runFirestoreMigration().catch((err) => {
-          console.warn('[Boot] Migreringssjekk fullført med advarsel:', err);
+          console.warn("[Boot] Migreringssjekk fullført med advarsel:", err);
         });
         const [status, dsets] = await Promise.all([
           API.getStatus().catch(() => null),
@@ -121,7 +143,7 @@ export default function App() {
           setActiveDataset(dsets[0]);
         }
       } catch (err) {
-        console.error('Initialization error:', err);
+        console.error("Initialization error:", err);
       }
     };
 
@@ -129,46 +151,50 @@ export default function App() {
 
     // High-concurrency real-time listeners for scalable metadata with performance telemetry
     const unsubscribeProjects = onSnapshot(
-      query(collection(db, 'projects'), orderBy('updatedAt', 'desc')),
+      query(collection(db, "projects"), orderBy("updatedAt", "desc")),
       (snapshot) => {
         const startTime = performance.now();
-        const projs = snapshot.docs.map(doc => doc.data() as ProjectMetadata);
+        const projs = snapshot.docs.map((doc) => doc.data() as ProjectMetadata);
         setProjects(projs);
         if (projs.length > 0) {
-          setActiveProject(prev => {
+          setActiveProject((prev) => {
             if (!prev) return projs[0];
-            const updated = projs.find(p => p.id === prev.id);
+            const updated = projs.find((p) => p.id === prev.id);
             return updated || projs[0];
           });
         }
         // Record latency, payload size, and burst telemetry
-        recordSnapshotPerformance('projects', snapshot, startTime);
+        recordSnapshotPerformance("projects", snapshot, startTime);
       },
-      (error) => handleFirestoreError(error, OperationType.LIST, 'projects')
+      (error) => handleFirestoreError(error, OperationType.LIST, "projects"),
     );
 
     const unsubscribeRuns = onSnapshot(
-      query(collection(db, 'runs'), orderBy('createdAt', 'desc')),
+      query(collection(db, "runs"), orderBy("createdAt", "desc")),
       (snapshot) => {
         const startTime = performance.now();
-        const runsList = snapshot.docs.map(doc => doc.data() as TrainingRun);
+        const runsList = snapshot.docs.map((doc) => doc.data() as TrainingRun);
         // Let the active run state update if the most recent run has changed or completed
         if (runsList.length > 0) {
-          setActiveRun(prev => {
+          setActiveRun((prev) => {
             if (!prev) return runsList[0];
             // If we have an active session in progress, we might still receive updates from SSE.
             // But if Firestore tells us the latest state of the currently active run, we update it.
-            const updated = runsList.find(r => r.id === prev.id);
-            if (updated && (updated.status !== prev.status || updated.progressPercent !== prev.progressPercent)) {
+            const updated = runsList.find((r) => r.id === prev.id);
+            if (
+              updated &&
+              (updated.status !== prev.status ||
+                updated.progressPercent !== prev.progressPercent)
+            ) {
               return updated;
             }
             return prev;
           });
         }
         // Record latency, payload size, and burst telemetry
-        recordSnapshotPerformance('runs', snapshot, startTime);
+        recordSnapshotPerformance("runs", snapshot, startTime);
       },
-      (error) => handleFirestoreError(error, OperationType.LIST, 'runs')
+      (error) => handleFirestoreError(error, OperationType.LIST, "runs"),
     );
 
     return () => {
@@ -182,32 +208,32 @@ export default function App() {
   // 2. Server-Sent Events (SSE) Live Training Telemetry
   // -------------------------------------------------------------
   useEffect(() => {
-    const sse = new EventSource('/api/training/stream');
+    const sse = new EventSource("/api/training/stream");
 
-    sse.addEventListener('connected', () => {
-      console.log('[SSE] Koblet til sanntidstelemetri');
+    sse.addEventListener("connected", () => {
+      console.log("[SSE] Koblet til sanntidstelemetri");
     });
 
-    sse.addEventListener('run_status', (e: MessageEvent) => {
+    sse.addEventListener("run_status", (e: MessageEvent) => {
       try {
         const run: TrainingRun = JSON.parse(e.data);
         setActiveRun(run);
       } catch (err) {
-        console.error('SSE parse error:', err);
+        console.error("SSE parse error:", err);
       }
     });
 
-    sse.addEventListener('run_start', (e: MessageEvent) => {
+    sse.addEventListener("run_start", (e: MessageEvent) => {
       try {
         const run: TrainingRun = JSON.parse(e.data);
         setActiveRun(run);
-        setRightPaneMode('training');
+        setRightPaneMode("training");
         setMessages((prev) => [
           ...prev,
           {
-            id: generateUniqueId('run-start'),
-            sender: 'system',
-            text: `Treningsøkt ${run.id.slice(0, 12)} påbegynt på datasett '${activeDataset?.name || 'Norsk Korpus'}'.`,
+            id: generateUniqueId("run-start"),
+            sender: "system",
+            text: `Treningsøkt ${run.id.slice(0, 12)} påbegynt på datasett '${activeDataset?.name || "Norsk Korpus"}'.`,
             timestamp: new Date().toISOString(),
           },
         ]);
@@ -216,13 +242,15 @@ export default function App() {
       }
     });
 
-    sse.addEventListener('epoch_update', (e: MessageEvent) => {
+    sse.addEventListener("epoch_update", (e: MessageEvent) => {
       try {
         const data = JSON.parse(e.data);
         setActiveRun((prev) => {
           if (!prev || prev.id !== data.runId) return prev;
           const nextHistory = [...prev.history, data.metric];
-          const nextLogs = data.logLine ? [...prev.logLines, data.logLine] : prev.logLines;
+          const nextLogs = data.logLine
+            ? [...prev.logLines, data.logLine]
+            : prev.logLines;
           return {
             ...prev,
             currentEpoch: data.currentEpoch,
@@ -236,38 +264,52 @@ export default function App() {
       }
     });
 
-    sse.addEventListener('run_completed', (e: MessageEvent) => {
+    sse.addEventListener("run_completed", (e: MessageEvent) => {
       try {
         const data = JSON.parse(e.data);
         setActiveRun(data.run);
-        setMessages((prev) => [
-          ...prev,
+        
+        const accuracy = data.run.finalMetrics?.accuracy || 0;
+        
+        const newMessages: ChatMessage[] = [
           {
-            id: generateUniqueId('run-completed'),
-            sender: 'model',
-            text: `**Trening Fullført!**\n\nModellen er ferdig trent over ${data.run.totalEpochs} epoker med slutt-nøyaktighet på **${(data.run.finalMetrics.accuracy * 100).toFixed(1)}%**.\n\n- Estimert RAM på Arduino/ESP32: **~${data.run.finalMetrics.memoryKb} KB**\n- Selvstendig C-header eksportert: \`ornith_tinyml_model.h\`\n\nDu kan nå teste interaktiv inferens under *Forhåndsvisning* eller inspisere forvekslingsmatrisen under *Evaluering*.`,
+            id: generateUniqueId("run-completed"),
+            sender: "model",
+            text: `**Trening Fullført!**\n\nModellen er ferdig trent over ${data.run.totalEpochs} epoker med slutt-nøyaktighet på **${(accuracy * 100).toFixed(1)}%**.\n\n- Estimert RAM på Arduino/ESP32: **~${data.run.finalMetrics?.memoryKb || 0} KB**\n- Selvstendig C-header eksportert: \`ornith_tinyml_model.h\`\n\nDu kan nå teste interaktiv inferens under *Inferens* eller inspisere forvekslingsmatrisen under *Evaluering*.`,
             timestamp: new Date().toISOString(),
-            modelUsed: 'Ornith Engine',
+            modelUsed: "Ornith Engine",
             trainingEvent: {
-              type: 'run_completed',
+              type: "run_completed",
               runId: data.runId,
             },
-          },
-        ]);
+          }
+        ];
+
+        if (accuracy < 0.85) {
+          newMessages.push({
+            id: generateUniqueId("recommendation"),
+            sender: "model",
+            text: `💡 **Anbefaling: Forbedring av datasett**\n\nNøyaktigheten endte på ${(accuracy * 100).toFixed(1)}%, som er under grensen på 85%. For å forbedre ytelsen på kantenheten, anbefaler jeg følgende tiltak i datasettet:\n\n- **Klasse-balansering**: Sjekk under *Datasett* for å sikre at ingen intensjoner (f.eks. ukjente kommandoer) er kraftig underrepresentert.\n- **Flere variasjoner**: Legg til flere eksempler med synonymer, formuleringsvarianter, og norske spesialtegn (æ/ø/å).\n- **Datarensing**: Sørg for at konfigurerte valideringsregler fjerner forstyrrende støy eller tomme verdier.`,
+            timestamp: new Date().toISOString(),
+            modelUsed: "Ornith Assistant",
+          });
+        }
+
+        setMessages((prev) => [...prev, ...newMessages]);
       } catch (err) {
         console.error(err);
       }
     });
 
-    sse.addEventListener('run_cancelled', (e: MessageEvent) => {
+    sse.addEventListener("run_cancelled", (e: MessageEvent) => {
       try {
         const data = JSON.parse(e.data);
         setActiveRun(data.run);
         setMessages((prev) => [
           ...prev,
           {
-            id: generateUniqueId('run-cancelled'),
-            sender: 'system',
+            id: generateUniqueId("run-cancelled"),
+            sender: "system",
             text: `Treningsøkt ble avbrutt av bruker.`,
             timestamp: new Date().toISOString(),
           },
@@ -277,15 +319,15 @@ export default function App() {
       }
     });
 
-    sse.addEventListener('run_failed', (e: MessageEvent) => {
+    sse.addEventListener("run_failed", (e: MessageEvent) => {
       try {
         const data = JSON.parse(e.data);
         setActiveRun(data.run);
         setMessages((prev) => [
           ...prev,
           {
-            id: generateUniqueId('run-failed'),
-            sender: 'system',
+            id: generateUniqueId("run-failed"),
+            sender: "system",
             text: `Trening feilet: ${data.error}`,
             timestamp: new Date().toISOString(),
           },
@@ -315,7 +357,7 @@ export default function App() {
       // Clamp ratio between 28% and 55%
       const clamped = Math.max(0.28, Math.min(0.55, newRatio));
       setSplitRatio(clamped);
-      localStorage.setItem('ornith_split_ratio', clamped.toFixed(4));
+      localStorage.setItem("ornith_split_ratio", clamped.toFixed(4));
     };
 
     const handleMouseUp = () => {
@@ -325,12 +367,12 @@ export default function App() {
     };
 
     if (isDraggingDivider) {
-      window.addEventListener('mousemove', handleMouseMove);
-      window.addEventListener('mouseup', handleMouseUp);
+      window.addEventListener("mousemove", handleMouseMove);
+      window.addEventListener("mouseup", handleMouseUp);
     }
     return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', handleMouseUp);
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
     };
   }, [isDraggingDivider]);
 
@@ -339,15 +381,17 @@ export default function App() {
   // -------------------------------------------------------------
   const handleSendMessage = async (text: string, attachments?: File[]) => {
     const userMsg: ChatMessage = {
-      id: generateUniqueId('user'),
-      sender: 'user',
+      id: generateUniqueId("user"),
+      sender: "user",
       text,
       timestamp: new Date().toISOString(),
       attachments: attachments?.map((f, i) => ({
         id: generateUniqueId(`att-${i}`),
         name: f.name,
         size: f.size,
-        type: (f.name.endsWith('.jsonl') || f.name.endsWith('.csv') ? 'dataset' : 'file') as 'dataset' | 'file',
+        type: (f.name.endsWith(".jsonl") || f.name.endsWith(".csv")
+          ? "dataset"
+          : "file") as "dataset" | "file",
       })),
     };
 
@@ -357,7 +401,7 @@ export default function App() {
     try {
       // Build history for multi-turn chat
       const history = messages.slice(-6).map((m) => ({
-        role: (m.sender === 'user' ? 'user' : 'model') as 'user' | 'model',
+        role: (m.sender === "user" ? "user" : "model") as "user" | "model",
         text: m.text,
       }));
 
@@ -372,8 +416,8 @@ export default function App() {
       setMessages((prev) => [
         ...prev,
         {
-          id: generateUniqueId('model-reply'),
-          sender: 'model',
+          id: generateUniqueId("model-reply"),
+          sender: "model",
           text: res.text,
           timestamp: new Date().toISOString(),
           modelUsed: res.modelUsed,
@@ -383,11 +427,11 @@ export default function App() {
       setMessages((prev) => [
         ...prev,
         {
-          id: generateUniqueId('model-err'),
-          sender: 'model',
-          text: `Beklager, det oppstod en feil: ${err.message || 'Ukjent feil'}`,
+          id: generateUniqueId("model-err"),
+          sender: "model",
+          text: `Beklager, det oppstod en feil: ${err.message || "Ukjent feil"}`,
           timestamp: new Date().toISOString(),
-          modelUsed: 'Ornith Feilhåndterer',
+          modelUsed: "Ornith Feilhåndterer",
         },
       ]);
     } finally {
@@ -396,22 +440,32 @@ export default function App() {
   };
 
   const handleQuickAction = (action: string) => {
-    if (action.includes('Start TinyML-trening')) {
-      setRightPaneMode('training');
+    if (action.includes("Start TinyML-trening")) {
+      setRightPaneMode("training");
       handleStartTraining({
         epochs: 25,
         batchSize: 8,
         learningRate: 0.02,
-        optimizer: 'adam',
+        optimizer: "adam",
         seed: 42,
         earlyStoppingPatience: 6,
       });
-    } else if (action.includes('Analyser')) {
-      setRightPaneMode('dataset');
-      handleSendMessage('Analyser det norske korpuset for klassebalanse og æ/ø/å-dekning.');
-    } else if (action.includes('Generer C-header')) {
-      setRightPaneMode('code');
-      handleSendMessage('Forklar hvordan den eksporterte C-headeren integreres på en mikrokontroller.');
+    } else if (action.includes("Analyser")) {
+      setRightPaneMode("dataset");
+      handleSendMessage(
+        "Analyser det norske korpuset for klassebalanse og æ/ø/å-dekning.",
+      );
+    } else if (action.includes("Generer C-header")) {
+      setRightPaneMode("code");
+      handleSendMessage(
+        "Forklar hvordan den eksporterte C-headeren integreres på en mikrokontroller.",
+      );
+    } else if (
+      action.toLowerCase().includes("telemetri") ||
+      action.toLowerCase().includes("ytelse") ||
+      action.toLowerCase().includes("latens")
+    ) {
+      setRightPaneMode("telemetry");
     } else {
       handleSendMessage(action);
     }
@@ -422,16 +476,16 @@ export default function App() {
   // -------------------------------------------------------------
   const handleStartTraining = async (hp: TrainingHyperparameters) => {
     if (!activeDataset) return;
-    setRightPaneMode('training');
+    setRightPaneMode("training");
     try {
       const res = await API.startTraining({
-        projectId: activeProject?.id || 'default',
+        projectId: activeProject?.id || "default",
         datasetId: activeDataset.id,
         hyperparameters: hp,
       });
       setActiveRun(res.run);
     } catch (err: any) {
-      console.error('Could not start training:', err);
+      console.error("Could not start training:", err);
       alert(`Kunne ikke starte trening: ${err.message}`);
     }
   };
@@ -440,7 +494,7 @@ export default function App() {
     try {
       await API.cancelTraining();
     } catch (e) {
-      console.error('Cancel failed', e);
+      console.error("Cancel failed", e);
     }
   };
 
@@ -460,12 +514,12 @@ export default function App() {
   const handleUploadSuccess = (meta: DatasetMetadata) => {
     setDatasets((prev) => [meta, ...prev]);
     setActiveDataset(meta);
-    setRightPaneMode('dataset');
+    setRightPaneMode("dataset");
     setMessages((prev) => [
       ...prev,
       {
-        id: generateUniqueId('upload-success'),
-        sender: 'system',
+        id: generateUniqueId("upload-success"),
+        sender: "system",
         text: `Datasett '${meta.name}' (${meta.rowCount} rader, ${meta.dialect}) importert og validert.`,
         timestamp: new Date().toISOString(),
       },
@@ -505,17 +559,21 @@ export default function App() {
       {/* Mobile view toggle tabs (hidden on md and larger) */}
       <div className="flex h-9 shrink-0 items-center justify-center border-b border-[rgba(255,255,255,0.06)] bg-[#111] md:hidden">
         <button
-          onClick={() => setMobileTab('left')}
+          onClick={() => setMobileTab("left")}
           className={`flex-1 py-1.5 text-center text-xs font-medium ${
-            mobileTab === 'left' ? 'text-white border-b-2 border-[#8F2BFF]' : 'text-[#888]'
+            mobileTab === "left"
+              ? "text-white border-b-2 border-[#8F2BFF]"
+              : "text-[#888]"
           }`}
         >
           Samtale & Kontroll
         </button>
         <button
-          onClick={() => setMobileTab('right')}
+          onClick={() => setMobileTab("right")}
           className={`flex-1 py-1.5 text-center text-xs font-medium ${
-            mobileTab === 'right' ? 'text-white border-b-2 border-[#8F2BFF]' : 'text-[#888]'
+            mobileTab === "right"
+              ? "text-white border-b-2 border-[#8F2BFF]"
+              : "text-[#888]"
           }`}
         >
           Arbeidsflate ({rightPaneMode.toUpperCase()})
@@ -528,7 +586,7 @@ export default function App() {
         <div
           style={{ width: `${splitRatio * 100}%` }}
           className={`h-full min-w-[360px] ${
-            mobileTab === 'left' ? 'block' : 'hidden md:block'
+            mobileTab === "left" ? "block" : "hidden md:block"
           }`}
         >
           <LeftPane
@@ -542,14 +600,14 @@ export default function App() {
             onQuickAction={handleQuickAction}
             onNavigateToMode={(mode) => {
               setRightPaneMode(mode);
-              setMobileTab('right');
+              setMobileTab("right");
             }}
             onStartTrainingShortcut={() =>
               handleStartTraining({
                 epochs: 25,
                 batchSize: 8,
                 learningRate: 0.02,
-                optimizer: 'adam',
+                optimizer: "adam",
                 seed: 42,
                 earlyStoppingPatience: 6,
               })
@@ -562,7 +620,7 @@ export default function App() {
           onMouseDown={handleMouseDown}
           title="Dra for å endre panelets bredde"
           className={`hidden md:flex w-1.5 cursor-col-resize items-center justify-center transition-colors hover:bg-[#8F2BFF] ${
-            isDraggingDivider ? 'bg-[#8F2BFF]' : 'bg-[rgba(255,255,255,0.06)]'
+            isDraggingDivider ? "bg-[#8F2BFF]" : "bg-[rgba(255,255,255,0.06)]"
           }`}
         >
           <div className="h-8 w-0.5 rounded-full bg-[rgba(255,255,255,0.3)]" />
@@ -572,7 +630,7 @@ export default function App() {
         <div
           style={{ width: `${(1 - splitRatio) * 100}%` }}
           className={`h-full flex-1 min-w-[480px] ${
-            mobileTab === 'right' ? 'block' : 'hidden md:block'
+            mobileTab === "right" ? "block" : "hidden md:block"
           }`}
         >
           <RightPane
@@ -586,11 +644,15 @@ export default function App() {
             onCancelTraining={handleCancelTraining}
             onProjectUpdated={(p) => {
               setActiveProject(p);
-              setProjects((prev) => prev.map((item) => (item.id === p.id ? p : item)));
+              setProjects((prev) =>
+                prev.map((item) => (item.id === p.id ? p : item)),
+              );
             }}
             onDatasetUpdated={(d) => {
               setActiveDataset(d);
-              setDatasets((prev) => prev.map((item) => (item.id === d.id ? d : item)));
+              setDatasets((prev) =>
+                prev.map((item) => (item.id === d.id ? d : item)),
+              );
             }}
           />
         </div>

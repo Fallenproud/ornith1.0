@@ -1,12 +1,12 @@
 /**
  * ULTIMATE ORNITH 1.0 — Validation Rules Manager & Interactive Sandbox
- * 
+ *
  * Allows users to inspect, configure, add, edit, test, and persist custom
  * validation rules for column types, missing values, range bounds, and authentic
  * Norwegian language characteristics.
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from "react";
 import {
   ShieldCheck,
   Plus,
@@ -24,32 +24,35 @@ import {
   FileCheck,
   Save,
   Flame,
-  CloudCheck,
   Info,
   Hash,
   Languages,
   CheckCircle2,
-} from 'lucide-react';
-import { doc, setDoc } from 'firebase/firestore';
+} from "lucide-react";
+import { doc, setDoc } from "firebase/firestore";
 import {
   db,
   handleFirestoreError,
   OperationType,
   saveProjectValidationRulesTransactional,
   updateValidationRule,
-} from '../../lib/firebase';
+} from "../../lib/firebase";
 import {
   DatasetValidationRule,
   ProjectMetadata,
   ProjectValidationConfig,
   ValidationRuleType,
   ValidationErrorDetail,
-} from '../../types';
+} from "../../types";
 import {
   DEFAULT_NORWEGIAN_VALIDATION_RULES,
   getRuleTypeMeta,
-} from '../../lib/validation';
-import { API } from '../../lib/api';
+} from "../../lib/validation";
+import { API } from "../../lib/api";
+import {
+  ThresholdConfigForm,
+  TransactionStatusState,
+} from "./ThresholdConfigForm";
 
 interface ValidationRulesManagerProps {
   activeProject: ProjectMetadata | null;
@@ -65,28 +68,37 @@ export const ValidationRulesManager: React.FC<ValidationRulesManagerProps> = ({
   onClose,
 }) => {
   const [rules, setRules] = useState<DatasetValidationRule[]>(
-    activeProject?.validationConfig?.rules || DEFAULT_NORWEGIAN_VALIDATION_RULES
+    activeProject?.validationConfig?.rules ||
+      DEFAULT_NORWEGIAN_VALIDATION_RULES,
   );
   const [strictMode, setStrictMode] = useState<boolean>(
-    activeProject?.validationConfig?.strictMode || false
+    activeProject?.validationConfig?.strictMode || false,
   );
   const [autoCleanWhitespace, setAutoCleanWhitespace] = useState<boolean>(
-    activeProject?.validationConfig?.autoCleanWhitespace !== false
+    activeProject?.validationConfig?.autoCleanWhitespace !== false,
   );
 
-  const [categoryFilter, setCategoryFilter] = useState<string>('all');
+  const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [firestoreSavedTime, setFirestoreSavedTime] = useState<string | null>(
-    activeProject?.validationConfig?.lastSavedToFirestore || null
+    activeProject?.validationConfig?.lastSavedToFirestore || null,
   );
-  const [editingRule, setEditingRule] = useState<DatasetValidationRule | null>(null);
+  const [editingRule, setEditingRule] = useState<DatasetValidationRule | null>(
+    null,
+  );
   const [isNewRule, setIsNewRule] = useState(false);
+  const [transactionStatus, setTransactionStatus] = useState<
+    Record<string, TransactionStatusState>
+  >({});
 
   // Sandbox testing state
-  const [sandboxText, setSandboxText] = useState('Skru av lyset i garasjen før du går ut');
-  const [sandboxLabel, setSandboxLabel] = useState('lys_kontroll');
-  const [selectedRuleToTest, setSelectedRuleToTest] = useState<DatasetValidationRule | null>(null);
+  const [sandboxText, setSandboxText] = useState(
+    "Skru av lyset i garasjen før du går ut",
+  );
+  const [sandboxLabel, setSandboxLabel] = useState("lys_kontroll");
+  const [selectedRuleToTest, setSelectedRuleToTest] =
+    useState<DatasetValidationRule | null>(null);
   const [testResult, setTestResult] = useState<{
     tested: boolean;
     passed: boolean;
@@ -102,27 +114,62 @@ export const ValidationRulesManager: React.FC<ValidationRulesManagerProps> = ({
     if (activeProject?.validationConfig?.rules) {
       setRules(activeProject.validationConfig.rules);
       setStrictMode(!!activeProject.validationConfig.strictMode);
-      setAutoCleanWhitespace(activeProject.validationConfig.autoCleanWhitespace !== false);
+      setAutoCleanWhitespace(
+        activeProject.validationConfig.autoCleanWhitespace !== false,
+      );
       if (activeProject.validationConfig.lastSavedToFirestore) {
-        setFirestoreSavedTime(activeProject.validationConfig.lastSavedToFirestore);
+        setFirestoreSavedTime(
+          activeProject.validationConfig.lastSavedToFirestore,
+        );
       }
     }
   }, [activeProject?.id]);
 
-  const handleToggleRule = (ruleId: string) => {
+  const handleToggleRule = async (ruleId: string) => {
+    let toggledRule: DatasetValidationRule | undefined;
     setRules((prev) =>
-      prev.map((r) => (r.id === ruleId ? { ...r, enabled: !r.enabled } : r))
+      prev.map((r) => {
+        if (r.id === ruleId) {
+          toggledRule = { ...r, enabled: !r.enabled };
+          return toggledRule;
+        }
+        return r;
+      }),
     );
+
+    if (activeProject && toggledRule) {
+      try {
+        await updateValidationRule(activeProject.id, toggledRule);
+        setFirestoreSavedTime(new Date().toISOString());
+      } catch (err) {
+        console.warn("[Firestore] Toggle-regel oppdateringsfeil:", err);
+      }
+    }
   };
 
-  const handleToggleSeverity = (ruleId: string) => {
+  const handleToggleSeverity = async (ruleId: string) => {
+    let updatedRule: DatasetValidationRule | undefined;
     setRules((prev) =>
-      prev.map((r) =>
-        r.id === ruleId
-          ? { ...r, severity: r.severity === 'error' ? 'warning' : 'error' }
-          : r
-      )
+      prev.map((r) => {
+        if (r.id === ruleId) {
+          updatedRule = {
+            ...r,
+            severity: r.severity === "error" ? "warning" : "error",
+          };
+          return updatedRule;
+        }
+        return r;
+      }),
     );
+
+    if (activeProject && updatedRule) {
+      try {
+        await updateValidationRule(activeProject.id, updatedRule);
+        setFirestoreSavedTime(new Date().toISOString());
+      } catch (err) {
+        console.warn("[Firestore] Alvorlighetsgrad oppdateringsfeil:", err);
+      }
+    }
   };
 
   const handleDeleteRule = (ruleId: string) => {
@@ -130,7 +177,11 @@ export const ValidationRulesManager: React.FC<ValidationRulesManagerProps> = ({
   };
 
   const handleResetDefaults = () => {
-    if (window.confirm('Vil du tilbakestille alle valideringsregler til standard norske TinyML-regler?')) {
+    if (
+      window.confirm(
+        "Vil du tilbakestille alle valideringsregler til standard norske TinyML-regler?",
+      )
+    ) {
       setRules(DEFAULT_NORWEGIAN_VALIDATION_RULES);
       setStrictMode(false);
       setAutoCleanWhitespace(true);
@@ -145,15 +196,23 @@ export const ValidationRulesManager: React.FC<ValidationRulesManagerProps> = ({
     try {
       // 1. Persist directly to Firestore Database via concurrency-safe atomic transaction
       try {
-        const savedConfig = await saveProjectValidationRulesTransactional(activeProject.id, {
-          rules,
-          strictMode,
-          autoCleanWhitespace,
-        });
-        console.log(`[Firestore] Valideringsregler lagret i prosjekt ${activeProject.id}`);
+        const savedConfig = await saveProjectValidationRulesTransactional(
+          activeProject.id,
+          {
+            rules,
+            strictMode,
+            autoCleanWhitespace,
+          },
+        );
+        console.log(
+          `[Firestore] Valideringsregler lagret i prosjekt ${activeProject.id}`,
+        );
         setFirestoreSavedTime(savedConfig.lastSavedToFirestore || nowIso);
       } catch (firestoreErr) {
-        console.warn('[Firestore] Direkte Firestore-skriving ga feil (fortsetter via API):', firestoreErr);
+        console.warn(
+          "[Firestore] Direkte Firestore-skriving ga feil (fortsetter via API):",
+          firestoreErr,
+        );
       }
 
       // 2. Persist via backend API for local server synchronization
@@ -184,8 +243,8 @@ export const ValidationRulesManager: React.FC<ValidationRulesManagerProps> = ({
         onApplyRulesToActiveDataset(rules);
       }
     } catch (e) {
-      console.error('Failed to save validation rules to project', e);
-      alert('Kunne ikke lagre regler til prosjektkonfigurasjonen.');
+      console.error("Failed to save validation rules to project", e);
+      alert("Kunne ikke lagre regler til prosjektkonfigurasjonen.");
     } finally {
       setIsSaving(false);
     }
@@ -211,7 +270,7 @@ export const ValidationRulesManager: React.FC<ValidationRulesManagerProps> = ({
         norwegianCharCount: res.norwegianCharCount,
       });
     } catch (e) {
-      console.error('Failed to test rule', e);
+      console.error("Failed to test rule", e);
     } finally {
       setIsTesting(false);
     }
@@ -220,18 +279,18 @@ export const ValidationRulesManager: React.FC<ValidationRulesManagerProps> = ({
   const openNewRuleModal = () => {
     const newRule: DatasetValidationRule = {
       id: `custom-rule-${Date.now().toString(36)}`,
-      name: 'Egendefinert regel',
-      description: 'Brukerdefinert valideringsregel for TinyML.',
-      type: 'range_limits',
+      name: "Egendefinert regel",
+      description: "Brukerdefinert valideringsregel for TinyML.",
+      type: "range_limits",
       enabled: true,
-      severity: 'error',
+      severity: "error",
       params: {
-        targetColumn: 'text',
+        targetColumn: "text",
         minLength: 3,
         maxLength: 200,
         minWords: 1,
         maxWords: 35,
-        customErrorMessage: 'Teksten oppfyller ikke den egendefinerte grensen.',
+        customErrorMessage: "Teksten oppfyller ikke den egendefinerte grensen.",
       },
     };
     setEditingRule(newRule);
@@ -255,15 +314,65 @@ export const ValidationRulesManager: React.FC<ValidationRulesManagerProps> = ({
         await updateValidationRule(activeProject.id, rule);
         console.log(`[Firestore] updateValidationRule fullført for ${rule.id}`);
       } catch (err) {
-        console.warn('[Firestore] Kunne ikke auto-lagre enkeltregel:', err);
+        console.warn("[Firestore] Kunne ikke auto-lagre enkeltregel:", err);
       }
+    }
+  };
+
+  // Dedicated transactional rule update handler using updateValidationRule with transaction tracking
+  const handleUpdateRuleTransactional = async (rule: DatasetValidationRule) => {
+    const ruleKey = rule.id || rule.type;
+    setTransactionStatus((prev) => ({
+      ...prev,
+      [ruleKey]: {
+        status: "saving",
+        message: `Lagrer ${rule.name} med Firestore-transaksjon...`,
+      },
+    }));
+
+    try {
+      // 1. Update local state
+      const existingIdx = rules.findIndex((r) => r.id === rule.id || r.type === rule.type);
+      let nextRules: DatasetValidationRule[];
+      if (existingIdx >= 0) {
+        nextRules = rules.map((r, i) => (i === existingIdx ? rule : r));
+      } else {
+        nextRules = [...rules, rule];
+      }
+      setRules(nextRules);
+
+      // 2. Commit transaction to Firestore
+      const projId = activeProject?.id || "default_project";
+      await updateValidationRule(projId, rule);
+
+      setTransactionStatus((prev) => ({
+        ...prev,
+        [ruleKey]: {
+          status: "success",
+          message: `Transaksjon bekreftet: ${rule.name} oppdatert.`,
+          timestamp: new Date().toLocaleTimeString("nb-NO"),
+        },
+      }));
+      setFirestoreSavedTime(new Date().toISOString());
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 2500);
+    } catch (err: any) {
+      console.error("Firestore transactional update failed:", err);
+      setTransactionStatus((prev) => ({
+        ...prev,
+        [ruleKey]: {
+          status: "error",
+          message: `Feil under transaksjon: ${err?.message || "Nettverksfeil"}`,
+        },
+      }));
+      throw err;
     }
   };
 
   // Dedicated constraint update handler using updateValidationRule
   const handleQuickConstraintUpdate = async (
     ruleType: ValidationRuleType,
-    paramUpdates: Partial<DatasetValidationRule['params']>
+    paramUpdates: Partial<DatasetValidationRule["params"]>,
   ) => {
     const existingIndex = rules.findIndex((r) => r.type === ruleType);
     let targetRule: DatasetValidationRule;
@@ -284,18 +393,18 @@ export const ValidationRulesManager: React.FC<ValidationRulesManagerProps> = ({
         description: getRuleTypeMeta(ruleType).description,
         type: ruleType,
         enabled: true,
-        severity: 'error',
+        severity: "error",
         params: {
-          targetColumn: 'text',
+          targetColumn: "text",
           ...paramUpdates,
         },
       };
-
     }
 
-    const nextRules = existingIndex >= 0
-      ? rules.map((r, i) => (i === existingIndex ? targetRule : r))
-      : [...rules, targetRule];
+    const nextRules =
+      existingIndex >= 0
+        ? rules.map((r, i) => (i === existingIndex ? targetRule : r))
+        : [...rules, targetRule];
 
     setRules(nextRules);
 
@@ -306,19 +415,23 @@ export const ValidationRulesManager: React.FC<ValidationRulesManagerProps> = ({
         setSaveSuccess(true);
         setTimeout(() => setSaveSuccess(false), 2500);
       } catch (e) {
-        console.error('Failed to update validation rule in Firestore:', e);
+        console.error("Failed to update validation rule in Firestore:", e);
       }
     }
   };
 
+  const activeRulesCount = useMemo(
+    () => rules.filter((r) => r.enabled).length,
+    [rules],
+  );
 
-  const activeRulesCount = rules.filter((r) => r.enabled).length;
-
-  const filteredRules = rules.filter((rule) => {
-    if (categoryFilter === 'all') return true;
-    const meta = getRuleTypeMeta(rule.type);
-    return meta.category.toLowerCase().includes(categoryFilter.toLowerCase());
-  });
+  const filteredRules = useMemo(() => {
+    return rules.filter((rule) => {
+      if (categoryFilter === "all") return true;
+      const meta = getRuleTypeMeta(rule.type);
+      return meta.category.toLowerCase().includes(categoryFilter.toLowerCase());
+    });
+  }, [rules, categoryFilter]);
 
   return (
     <div className="flex h-full flex-col bg-[#121212] text-[#F4F4F2]">
@@ -339,10 +452,20 @@ export const ValidationRulesManager: React.FC<ValidationRulesManagerProps> = ({
               </span>
             </div>
             <p className="text-[11px] text-[#A3A3A0]">
-              Prosjekt: <span className="font-semibold text-white">{activeProject?.name || 'Standard'}</span> •{' '}
-              <span className="text-[#77F23B]">{activeRulesCount} aktive regler</span>
+              Prosjekt:{" "}
+              <span className="font-semibold text-white">
+                {activeProject?.name || "Standard"}
+              </span>{" "}
+              •{" "}
+              <span className="text-[#77F23B]">
+                {activeRulesCount} aktive regler
+              </span>
               {firestoreSavedTime && (
-                <span className="text-[#888]"> • Sist lagret: {new Date(firestoreSavedTime).toLocaleTimeString('nb-NO')}</span>
+                <span className="text-[#888]">
+                  {" "}
+                  • Sist lagret:{" "}
+                  {new Date(firestoreSavedTime).toLocaleTimeString("nb-NO")}
+                </span>
               )}
             </p>
           </div>
@@ -371,8 +494,8 @@ export const ValidationRulesManager: React.FC<ValidationRulesManagerProps> = ({
             disabled={isSaving}
             className={`flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-xs font-semibold transition-all ${
               saveSuccess
-                ? 'bg-[#77F23B] text-black shadow-md shadow-[#77F23B]/20'
-                : 'bg-[#8F2BFF] text-white shadow-md shadow-[#8F2BFF]/20 hover:bg-[#A347FF]'
+                ? "bg-[#77F23B] text-black shadow-md shadow-[#77F23B]/20"
+                : "bg-[#8F2BFF] text-white shadow-md shadow-[#8F2BFF]/20 hover:bg-[#A347FF]"
             } disabled:opacity-50`}
           >
             {saveSuccess ? (
@@ -383,7 +506,9 @@ export const ValidationRulesManager: React.FC<ValidationRulesManagerProps> = ({
             ) : (
               <>
                 <Save className="h-3.5 w-3.5" />
-                <span>{isSaving ? 'Lagrer til Firestore...' : 'Lagre & Synkroniser'}</span>
+                <span>
+                  {isSaving ? "Lagrer til Firestore..." : "Lagre & Synkroniser"}
+                </span>
               </>
             )}
           </button>
@@ -416,17 +541,17 @@ export const ValidationRulesManager: React.FC<ValidationRulesManagerProps> = ({
 
         {/* Category Filter Chips */}
         <div className="flex items-center gap-1">
-          {['all', 'Norsk NLP', 'Grenser', 'Struktur', 'Skjema'].map((cat) => (
+          {["all", "Norsk NLP", "Grenser", "Struktur", "Skjema"].map((cat) => (
             <button
               key={cat}
               onClick={() => setCategoryFilter(cat)}
               className={`rounded px-2 py-0.5 text-[11px] font-medium transition-colors ${
                 categoryFilter === cat
-                  ? 'bg-[#8F2BFF] text-white'
-                  : 'bg-[#1F1F1E] text-[#888] hover:text-[#CCC]'
+                  ? "bg-[#8F2BFF] text-white"
+                  : "bg-[#1F1F1E] text-[#888] hover:text-[#CCC]"
               }`}
             >
-              {cat === 'all' ? 'Alle regler' : cat}
+              {cat === "all" ? "Alle regler" : cat}
             </button>
           ))}
         </div>
@@ -436,148 +561,17 @@ export const ValidationRulesManager: React.FC<ValidationRulesManagerProps> = ({
       <div className="grid flex-1 grid-cols-1 gap-6 overflow-hidden p-6 lg:grid-cols-12">
         {/* Rules List & Constraint Form (Left 7 Cols) */}
         <div className="flex flex-col overflow-hidden rounded-xl border border-[rgba(255,255,255,0.06)] bg-[#141414] lg:col-span-7">
-          {/* Quick Constraint Configurator Form */}
+          {/* Comprehensive Threshold Configuration Form with Transactional Persistence */}
           <div className="border-b border-[rgba(255,255,255,0.06)] bg-[#171716] p-4">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <Sliders className="h-4 w-4 text-[#8F2BFF]" />
-                <h3 className="text-xs font-bold text-white uppercase tracking-wider">
-                  Begrensningsskjema (Hurtigkonfigurasjon)
-                </h3>
-              </div>
-              <span className="font-mono text-[10px] text-[#39D9E6]">
-                Synkroniseres til Firestore med updateValidationRule()
-              </span>
-            </div>
-
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-              {/* 1. Missing Values Constraints */}
-              <div className="rounded-lg border border-[rgba(255,255,255,0.05)] bg-[#1F1F1E] p-3 text-xs">
-                <div className="flex items-center gap-1.5 font-bold text-white mb-2">
-                  <AlertCircle className="h-3.5 w-3.5 text-[#FF453A]" />
-                  <span>Manglende verdier</span>
-                </div>
-                <div className="space-y-2 text-[11px] text-[#A3A3A0]">
-                  <label className="flex items-center gap-2 cursor-pointer hover:text-white">
-                    <input
-                      type="checkbox"
-                      checked={rules.some(r => r.type === 'missing_values' && r.enabled && r.params.disallowEmpty)}
-                      onChange={(e) => {
-                        handleQuickConstraintUpdate('missing_values', {
-                          disallowEmpty: e.target.checked,
-                          disallowWhitespaceOnly: true,
-                          targetColumn: 'text',
-                        });
-                      }}
-                      className="rounded border-[#444] bg-[#2A2A28] text-[#8F2BFF] focus:ring-0"
-                    />
-                    <span>Forby tomme strenger</span>
-                  </label>
-                  <label className="flex items-center gap-2 cursor-pointer hover:text-white">
-                    <input
-                      type="checkbox"
-                      checked={rules.some(r => r.type === 'missing_values' && r.enabled && r.params.disallowWhitespaceOnly)}
-                      onChange={(e) => {
-                        handleQuickConstraintUpdate('missing_values', {
-                          disallowWhitespaceOnly: e.target.checked,
-                          targetColumn: 'text',
-                        });
-                      }}
-                      className="rounded border-[#444] bg-[#2A2A28] text-[#8F2BFF] focus:ring-0"
-                    />
-                    <span>Forby kun mellomrom</span>
-                  </label>
-                </div>
-              </div>
-
-              {/* 2. Range Limits Constraints */}
-              <div className="rounded-lg border border-[rgba(255,255,255,0.05)] bg-[#1F1F1E] p-3 text-xs">
-                <div className="flex items-center gap-1.5 font-bold text-white mb-2">
-                  <Hash className="h-3.5 w-3.5 text-[#39D9E6]" />
-                  <span>Grenser (Lengde & Ord)</span>
-                </div>
-                <div className="space-y-2 text-[11px] text-[#A3A3A0]">
-                  <div className="flex items-center justify-between gap-1">
-                    <span>Maks tegn:</span>
-                    <input
-                      type="number"
-                      min={10}
-                      max={1000}
-                      defaultValue={rules.find(r => r.type === 'range_limits')?.params.maxLength || 200}
-                      onBlur={(e) => {
-                        const val = parseInt(e.target.value, 10) || 200;
-                        handleQuickConstraintUpdate('range_limits', {
-                          maxLength: val,
-                          minLength: 2,
-                          targetColumn: 'text',
-                        });
-                      }}
-                      className="w-16 rounded bg-[#2A2A28] px-1.5 py-0.5 font-mono text-[11px] text-white border border-[rgba(255,255,255,0.08)]"
-                    />
-                  </div>
-                  <div className="flex items-center justify-between gap-1">
-                    <span>Maks ord:</span>
-                    <input
-                      type="number"
-                      min={1}
-                      max={150}
-                      defaultValue={rules.find(r => r.type === 'range_limits')?.params.maxWords || 35}
-                      onBlur={(e) => {
-                        const val = parseInt(e.target.value, 10) || 35;
-                        handleQuickConstraintUpdate('range_limits', {
-                          maxWords: val,
-                          minWords: 1,
-                          targetColumn: 'text',
-                        });
-                      }}
-                      className="w-16 rounded bg-[#2A2A28] px-1.5 py-0.5 font-mono text-[11px] text-white border border-[rgba(255,255,255,0.08)]"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* 3. Norwegian Character Frequency & Dialect Authenticity */}
-              <div className="rounded-lg border border-[rgba(255,255,255,0.05)] bg-[#1F1F1E] p-3 text-xs">
-                <div className="flex items-center gap-1.5 font-bold text-white mb-2">
-                  <Languages className="h-3.5 w-3.5 text-[#77F23B]" />
-                  <span>Norsk tegnfrekvens</span>
-                </div>
-                <div className="space-y-2 text-[11px] text-[#A3A3A0]">
-                  <label className="flex items-center gap-2 cursor-pointer hover:text-white">
-                    <input
-                      type="checkbox"
-                      checked={rules.some(r => r.type === 'norwegian_char_frequency' && r.enabled)}
-                      onChange={(e) => {
-                        const rule = rules.find(r => r.type === 'norwegian_char_frequency');
-                        if (rule) {
-                          handleToggleRule(rule.id);
-                        } else {
-                          handleQuickConstraintUpdate('norwegian_char_frequency', {
-                            minNorwegianFrequencyPercent: 1.0,
-                            minNorwegianChars: 1,
-                            targetColumn: 'text',
-                          });
-                        }
-                      }}
-                      className="rounded border-[#444] bg-[#2A2A28] text-[#8F2BFF] focus:ring-0"
-                    />
-                    <span>Krev æ, ø, å frekvens</span>
-                  </label>
-                  <label className="flex items-center gap-2 cursor-pointer hover:text-white">
-                    <input
-                      type="checkbox"
-                      checked={rules.some(r => r.type === 'norwegian_vocabulary' && r.enabled)}
-                      onChange={() => {
-                        const rule = rules.find(r => r.type === 'norwegian_vocabulary');
-                        if (rule) handleToggleRule(rule.id);
-                      }}
-                      className="rounded border-[#444] bg-[#2A2A28] text-[#8F2BFF] focus:ring-0"
-                    />
-                    <span>Forby svenske tegn (ä, ö)</span>
-                  </label>
-                </div>
-              </div>
-            </div>
+            <ThresholdConfigForm
+              rules={rules}
+              projectId={activeProject?.id || "default_project"}
+              onUpdateRuleTransactional={handleUpdateRuleTransactional}
+              onTestRuleInSandbox={(sampleText) => {
+                setSandboxText(sampleText);
+              }}
+              transactionStatus={transactionStatus}
+            />
           </div>
 
           <div className="flex items-center justify-between border-b border-[rgba(255,255,255,0.06)] px-4 py-3 text-xs font-semibold text-white">
@@ -595,8 +589,8 @@ export const ValidationRulesManager: React.FC<ValidationRulesManagerProps> = ({
                   key={rule.id}
                   className={`rounded-xl border p-3.5 transition-all ${
                     rule.enabled
-                      ? 'border-[rgba(255,255,255,0.08)] bg-[#1A1A1A] shadow-sm'
-                      : 'border-[rgba(255,255,255,0.03)] bg-[#141414]/60 opacity-60'
+                      ? "border-[rgba(255,255,255,0.08)] bg-[#1A1A1A] shadow-sm"
+                      : "border-[rgba(255,255,255,0.03)] bg-[#141414]/60 opacity-60"
                   }`}
                 >
                   <div className="flex items-start justify-between gap-2">
@@ -606,19 +600,25 @@ export const ValidationRulesManager: React.FC<ValidationRulesManagerProps> = ({
                         checked={rule.enabled}
                         onChange={() => handleToggleRule(rule.id)}
                         className="mt-1 h-4 w-4 rounded border-[#444] bg-[#222] text-[#8F2BFF] focus:ring-0"
-                        title={rule.enabled ? 'Deaktiver regel' : 'Aktiver regel'}
+                        title={
+                          rule.enabled ? "Deaktiver regel" : "Aktiver regel"
+                        }
                       />
                       <div>
                         <div className="flex flex-wrap items-center gap-2">
-                          <h4 className="text-xs font-bold text-white">{rule.name}</h4>
+                          <h4 className="text-xs font-bold text-white">
+                            {rule.name}
+                          </h4>
                           <span className="rounded bg-[#222] px-1.5 py-0.5 font-mono text-[10px] text-[#A3A3A0]">
                             {meta.category}
                           </span>
                           <span className="font-mono text-[10px] text-[#39D9E6]">
-                            Kolonne: {rule.params.targetColumn || 'text'}
+                            Kolonne: {rule.params.targetColumn || "text"}
                           </span>
                         </div>
-                        <p className="mt-1 text-[11px] text-[#888]">{rule.description}</p>
+                        <p className="mt-1 text-[11px] text-[#888]">
+                          {rule.description}
+                        </p>
                       </div>
                     </div>
 
@@ -628,12 +628,14 @@ export const ValidationRulesManager: React.FC<ValidationRulesManagerProps> = ({
                         onClick={() => handleToggleSeverity(rule.id)}
                         title="Klikk for å endre alvorlighetsgrad mellom Feil og Advarsel"
                         className={`rounded px-2 py-0.5 font-mono text-[10px] font-bold uppercase transition-all ${
-                          rule.severity === 'error'
-                            ? 'border border-[#FF453A]/30 bg-[#FF453A]/10 text-[#FF453A]'
-                            : 'border border-[#FF9F0A]/30 bg-[#FF9F0A]/10 text-[#FF9F0A]'
+                          rule.severity === "error"
+                            ? "border border-[#FF453A]/30 bg-[#FF453A]/10 text-[#FF453A]"
+                            : "border border-[#FF9F0A]/30 bg-[#FF9F0A]/10 text-[#FF9F0A]"
                         }`}
                       >
-                        {rule.severity === 'error' ? 'Feil (Error)' : 'Advarsel (Warn)'}
+                        {rule.severity === "error"
+                          ? "Feil (Error)"
+                          : "Advarsel (Warn)"}
                       </button>
 
                       <button
@@ -670,52 +672,69 @@ export const ValidationRulesManager: React.FC<ValidationRulesManagerProps> = ({
 
                   {/* Rule Parameters Summary */}
                   <div className="mt-2.5 flex flex-wrap items-center gap-2 border-t border-[rgba(255,255,255,0.04)] pt-2 text-[11px] text-[#A3A3A0]">
-                    {rule.type === 'missing_values' && (
+                    {rule.type === "missing_values" && (
                       <span className="font-mono text-[#E0E0DC]">
-                        Mangler: {rule.params.disallowEmpty ? 'Forbyr tom' : 'Tillatt'} • {rule.params.disallowWhitespaceOnly ? 'Forbyr kun tomrom' : ''}
-                        {rule.params.maxMissingPercent != null && ` • Maks feiltoleranse: ${rule.params.maxMissingPercent}%`}
+                        Mangler:{" "}
+                        {rule.params.disallowEmpty ? "Forbyr tom" : "Tillatt"} •{" "}
+                        {rule.params.disallowWhitespaceOnly
+                          ? "Forbyr kun tomrom"
+                          : ""}
+                        {rule.params.maxMissingPercent != null &&
+                          ` • Maks feiltoleranse: ${rule.params.maxMissingPercent}%`}
                       </span>
                     )}
-                    {rule.type === 'range_limits' && (
+                    {rule.type === "range_limits" && (
                       <span className="font-mono text-[#E0E0DC]">
-                        Grenser: {rule.params.minLength ?? 1}–{rule.params.maxLength ?? 200} tegn • {rule.params.minWords ?? 1}–{rule.params.maxWords ?? 35} ord
-                        {rule.params.maxTokens ? ` • Maks ${rule.params.maxTokens} tokens` : ''}
+                        Grenser: {rule.params.minLength ?? 1}–
+                        {rule.params.maxLength ?? 200} tegn •{" "}
+                        {rule.params.minWords ?? 1}–{rule.params.maxWords ?? 35}{" "}
+                        ord
+                        {rule.params.maxTokens
+                          ? ` • Maks ${rule.params.maxTokens} tokens`
+                          : ""}
                       </span>
                     )}
-                    {rule.type === 'norwegian_char_frequency' && (
+                    {rule.type === "norwegian_char_frequency" && (
                       <span className="font-mono text-[#B25CFF]">
-                        Norsk frekvens: Min {rule.params.minNorwegianFrequencyPercent ?? 1}% tegn • Min {rule.params.minNorwegianChars ?? 1} av (æ, ø, å)
-                        {rule.params.requiredNorwegianCharacters && ` • Påkrevd: [${rule.params.requiredNorwegianCharacters.join(', ')}]`}
+                        Norsk frekvens: Min{" "}
+                        {rule.params.minNorwegianFrequencyPercent ?? 1}% tegn •
+                        Min {rule.params.minNorwegianChars ?? 1} av (æ, ø, å)
+                        {rule.params.requiredNorwegianCharacters &&
+                          ` • Påkrevd: [${rule.params.requiredNorwegianCharacters.join(", ")}]`}
                       </span>
                     )}
-                    {rule.type === 'text_length' && (
+                    {rule.type === "text_length" && (
                       <span className="font-mono text-[#E0E0DC]">
-                        Lengdegrense: {rule.params.minLength || 1} – {rule.params.maxLength || 250} tegn
+                        Lengdegrense: {rule.params.minLength || 1} –{" "}
+                        {rule.params.maxLength || 250} tegn
                       </span>
                     )}
-                    {rule.type === 'word_count' && (
+                    {rule.type === "word_count" && (
                       <span className="font-mono text-[#E0E0DC]">
-                        Ordtelling: {rule.params.minWords || 1} – {rule.params.maxWords || 50} ord
+                        Ordtelling: {rule.params.minWords || 1} –{" "}
+                        {rule.params.maxWords || 50} ord
                       </span>
                     )}
-                    {rule.type === 'norwegian_dialect' && (
+                    {rule.type === "norwegian_dialect" && (
                       <span className="font-mono text-[#77F23B]">
-                        Forventet språkform: {rule.params.dialectTarget || 'Bokmål'}
+                        Forventet språkform:{" "}
+                        {rule.params.dialectTarget || "Bokmål"}
                       </span>
                     )}
-                    {rule.type === 'ban_mojibake' && (
+                    {rule.type === "ban_mojibake" && (
                       <span className="font-mono text-[#FF453A]">
                         Filter: Ã¦, Ã¸, Ã¥, Â og UTF-8 feilkoding
                       </span>
                     )}
-                    {rule.type === 'norwegian_char_presence' && (
+                    {rule.type === "norwegian_char_presence" && (
                       <span className="font-mono text-[#B25CFF]">
-                        Minst {rule.params.minNorwegianChars || 1} av tegnene (æ, ø, å)
+                        Minst {rule.params.minNorwegianChars || 1} av tegnene
+                        (æ, ø, å)
                       </span>
                     )}
-                    {rule.type === 'column_type' && (
+                    {rule.type === "column_type" && (
                       <span className="font-mono text-[#39D9E6]">
-                        Forventer type: {rule.params.expectedType || 'string'}
+                        Forventer type: {rule.params.expectedType || "string"}
                       </span>
                     )}
                   </div>
@@ -741,7 +760,7 @@ export const ValidationRulesManager: React.FC<ValidationRulesManagerProps> = ({
                 Velg regel som skal testes
               </label>
               <select
-                value={selectedRuleToTest?.id || (rules[0] ? rules[0].id : '')}
+                value={selectedRuleToTest?.id || (rules[0] ? rules[0].id : "")}
                 onChange={(e) => {
                   const found = rules.find((r) => r.id === e.target.value);
                   setSelectedRuleToTest(found || null);
@@ -769,7 +788,10 @@ export const ValidationRulesManager: React.FC<ValidationRulesManagerProps> = ({
               />
               <div className="mt-1 flex items-center justify-between text-[10px] text-[#777]">
                 <span>Lengde: {sandboxText.length} tegn</span>
-                <span>Ord: {sandboxText.trim().split(/\s+/).filter(Boolean).length} ord</span>
+                <span>
+                  Ord: {sandboxText.trim().split(/\s+/).filter(Boolean).length}{" "}
+                  ord
+                </span>
               </div>
             </div>
 
@@ -791,7 +813,7 @@ export const ValidationRulesManager: React.FC<ValidationRulesManagerProps> = ({
               className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#8F2BFF] py-2.5 text-xs font-bold text-white shadow-md shadow-[#8F2BFF]/20 transition-all hover:bg-[#A347FF] disabled:opacity-50"
             >
               <Play className="h-3.5 w-3.5" />
-              <span>{isTesting ? 'Validerer...' : 'Kjør Valideringstest'}</span>
+              <span>{isTesting ? "Validerer..." : "Kjør Valideringstest"}</span>
             </button>
 
             {/* Test Result Output Box */}
@@ -799,10 +821,10 @@ export const ValidationRulesManager: React.FC<ValidationRulesManagerProps> = ({
               <div
                 className={`rounded-xl border p-3.5 transition-all ${
                   testResult.passed
-                    ? 'border-[#77F23B]/30 bg-[#77F23B]/10 text-white'
+                    ? "border-[#77F23B]/30 bg-[#77F23B]/10 text-white"
                     : testResult.hasWarnings
-                    ? 'border-[#FF9F0A]/30 bg-[#FF9F0A]/10 text-white'
-                    : 'border-[#FF453A]/30 bg-[#FF453A]/10 text-white'
+                      ? "border-[#FF9F0A]/30 bg-[#FF9F0A]/10 text-white"
+                      : "border-[#FF453A]/30 bg-[#FF453A]/10 text-white"
                 }`}
               >
                 <div className="flex items-center justify-between">
@@ -816,15 +838,16 @@ export const ValidationRulesManager: React.FC<ValidationRulesManagerProps> = ({
                     )}
                     <span className="font-bold text-xs">
                       {testResult.passed
-                        ? 'Testen BESTÅTT — Ingen feil'
+                        ? "Testen BESTÅTT — Ingen feil"
                         : testResult.hasWarnings
-                        ? 'ADVARSEL — Regelen slo ut med varsel'
-                        : 'AVVIST — Kritisk valideringsfeil'}
+                          ? "ADVARSEL — Regelen slo ut med varsel"
+                          : "AVVIST — Kritisk valideringsfeil"}
                     </span>
                   </div>
                   {testResult.norwegianCharCount && (
                     <span className="font-mono text-[10px] text-[#A3A3A0]">
-                      æ:{testResult.norwegianCharCount.ae} ø:{testResult.norwegianCharCount.oe} å:
+                      æ:{testResult.norwegianCharCount.ae} ø:
+                      {testResult.norwegianCharCount.oe} å:
                       {testResult.norwegianCharCount.aa}
                     </span>
                   )}
@@ -833,10 +856,13 @@ export const ValidationRulesManager: React.FC<ValidationRulesManagerProps> = ({
                 {testResult.failures && testResult.failures.length > 0 && (
                   <div className="mt-3 space-y-1.5 border-t border-[rgba(255,255,255,0.08)] pt-2.5">
                     {testResult.failures.map((f, i) => (
-                      <div key={i} className="text-[11px] flex items-start gap-1.5">
+                      <div
+                        key={f.ruleId ? `${f.ruleId}-${i}` : `${f.ruleName}-${f.field || 'field'}-${i}`}
+                        className="text-[11px] flex items-start gap-1.5"
+                      >
                         <span className="font-mono text-[#FF9F0A]">•</span>
                         <div>
-                          <strong className="text-white">{f.ruleName}:</strong>{' '}
+                          <strong className="text-white">{f.ruleName}:</strong>{" "}
                           <span className="text-[#E0E0DC]">{f.message}</span>
                           {f.actualValue && (
                             <span className="ml-1 rounded bg-black/40 px-1 font-mono text-[10px] text-[#FF453A]">
@@ -884,21 +910,23 @@ const RuleEditorModal: React.FC<RuleEditorModalProps> = ({
   onSave,
 }) => {
   const [formData, setFormData] = useState<DatasetValidationRule>({ ...rule });
-  const [activeConfigTab, setActiveConfigTab] = useState<'constraints' | 'severity' | 'preview'>('constraints');
+  const [activeConfigTab, setActiveConfigTab] = useState<
+    "constraints" | "severity" | "preview"
+  >("constraints");
 
   const handleTypeChange = (newType: ValidationRuleType) => {
     const meta = getRuleTypeMeta(newType);
     let defaultParams = { ...formData.params };
 
-    if (newType === 'missing_values') {
+    if (newType === "missing_values") {
       defaultParams = {
         ...defaultParams,
         disallowEmpty: true,
         disallowWhitespaceOnly: true,
         maxMissingPercent: 0,
-        customErrorMessage: 'Påkrevd verdi mangler eller er tom.',
+        customErrorMessage: "Påkrevd verdi mangler eller er tom.",
       };
-    } else if (newType === 'range_limits') {
+    } else if (newType === "range_limits") {
       defaultParams = {
         ...defaultParams,
         minLength: 3,
@@ -906,16 +934,18 @@ const RuleEditorModal: React.FC<RuleEditorModalProps> = ({
         minWords: 1,
         maxWords: 35,
         maxTokens: 50,
-        customErrorMessage: 'Teksten faller utenfor tillatt lengde- eller ordgrense.',
+        customErrorMessage:
+          "Teksten faller utenfor tillatt lengde- eller ordgrense.",
       };
-    } else if (newType === 'norwegian_char_frequency') {
+    } else if (newType === "norwegian_char_frequency") {
       defaultParams = {
         ...defaultParams,
         minNorwegianFrequencyPercent: 2.0,
         minNorwegianChars: 1,
-        dialectTarget: 'Bokmål',
-        requiredNorwegianCharacters: ['æ', 'ø', 'å'],
-        customErrorMessage: 'Teksten oppfyller ikke kravet til norsk tegnfrekvens eller særnorske tegn.',
+        dialectTarget: "Bokmål",
+        requiredNorwegianCharacters: ["æ", "ø", "å"],
+        customErrorMessage:
+          "Teksten oppfyller ikke kravet til norsk tegnfrekvens eller særnorske tegn.",
       };
     }
 
@@ -939,12 +969,12 @@ const RuleEditorModal: React.FC<RuleEditorModalProps> = ({
     }));
   };
 
-  const toggleRequiredChar = (char: 'æ' | 'ø' | 'å' | 'Æ' | 'Ø' | 'Å') => {
+  const toggleRequiredChar = (char: "æ" | "ø" | "å" | "Æ" | "Ø" | "Å") => {
     const current = formData.params.requiredNorwegianCharacters || [];
     const updated = current.includes(char)
       ? current.filter((c) => c !== char)
       : [...current, char];
-    handleParamChange('requiredNorwegianCharacters', updated);
+    handleParamChange("requiredNorwegianCharacters", updated);
   };
 
   return (
@@ -957,14 +987,19 @@ const RuleEditorModal: React.FC<RuleEditorModalProps> = ({
             </div>
             <div>
               <h3 className="text-sm font-bold text-white">
-                {isNew ? 'Definer ny valideringsregel' : 'Rediger valideringsregel'}
+                {isNew
+                  ? "Definer ny valideringsregel"
+                  : "Rediger valideringsregel"}
               </h3>
               <p className="text-[11px] text-[#A3A3A0]">
                 Persisteres til Firestore og TinyML-kjøretid
               </p>
             </div>
           </div>
-          <button onClick={onClose} className="rounded-lg p-1 text-[#888] hover:bg-[#222] hover:text-white">
+          <button
+            onClick={onClose}
+            className="rounded-lg p-1 text-[#888] hover:bg-[#222] hover:text-white"
+          >
             ✕
           </button>
         </div>
@@ -979,21 +1014,29 @@ const RuleEditorModal: React.FC<RuleEditorModalProps> = ({
           {/* Rule Name & Target Column */}
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
-              <label className="block font-medium text-[#E0E0DC]">Regelnavn</label>
+              <label className="block font-medium text-[#E0E0DC]">
+                Regelnavn
+              </label>
               <input
                 type="text"
                 required
                 value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, name: e.target.value })
+                }
                 className="mt-1 w-full rounded-lg border border-[rgba(255,255,255,0.08)] bg-[#1F1F1E] p-2 text-white focus:border-[#8F2BFF] focus:outline-none"
               />
             </div>
 
             <div>
-              <label className="block font-medium text-[#E0E0DC]">Målkolonne</label>
+              <label className="block font-medium text-[#E0E0DC]">
+                Målkolonne
+              </label>
               <select
-                value={formData.params.targetColumn || 'text'}
-                onChange={(e) => handleParamChange('targetColumn', e.target.value)}
+                value={formData.params.targetColumn || "text"}
+                onChange={(e) =>
+                  handleParamChange("targetColumn", e.target.value)
+                }
                 className="mt-1 w-full rounded-lg border border-[rgba(255,255,255,0.08)] bg-[#1F1F1E] p-2 text-white focus:outline-none"
               >
                 <option value="text">text (Ytring / Norsk inndata)</option>
@@ -1005,21 +1048,37 @@ const RuleEditorModal: React.FC<RuleEditorModalProps> = ({
 
           {/* Rule Type Category Selector */}
           <div>
-            <label className="block font-medium text-[#E0E0DC]">Regeltype & Begrensning</label>
+            <label className="block font-medium text-[#E0E0DC]">
+              Regeltype & Begrensning
+            </label>
             <select
               value={formData.type}
-              onChange={(e) => handleTypeChange(e.target.value as ValidationRuleType)}
+              onChange={(e) =>
+                handleTypeChange(e.target.value as ValidationRuleType)
+              }
               className="mt-1 w-full rounded-lg border border-[#8F2BFF]/30 bg-[#1F1F1E] p-2 text-white font-medium focus:outline-none"
             >
               <optgroup label="Hovedbegrensninger (Krav)">
-                <option value="missing_values">🚫 Mangler verdier / Tomme felt (Missing Values Constraint)</option>
-                <option value="range_limits">📏 Område- & Grensebegrensninger (Range Limits Constraint)</option>
-                <option value="norwegian_char_frequency">🇳🇴 Norsk tegnfrekvens & ratio (Norwegian Frequency)</option>
+                <option value="missing_values">
+                  🚫 Mangler verdier / Tomme felt (Missing Values Constraint)
+                </option>
+                <option value="range_limits">
+                  📏 Område- & Grensebegrensninger (Range Limits Constraint)
+                </option>
+                <option value="norwegian_char_frequency">
+                  🇳🇴 Norsk tegnfrekvens & ratio (Norwegian Frequency)
+                </option>
               </optgroup>
               <optgroup label="Språk og Norsk NLP">
-                <option value="norwegian_char_presence">Norske tegn tilstede (æ, ø, å)</option>
-                <option value="norwegian_dialect">Dialekt- og språkformsjekk (Bokmål / Nynorsk)</option>
-                <option value="ban_mojibake">Deteksjon av Mojibake / Feilkoding</option>
+                <option value="norwegian_char_presence">
+                  Norske tegn tilstede (æ, ø, å)
+                </option>
+                <option value="norwegian_dialect">
+                  Dialekt- og språkformsjekk (Bokmål / Nynorsk)
+                </option>
+                <option value="ban_mojibake">
+                  Deteksjon av Mojibake / Feilkoding
+                </option>
               </optgroup>
               <optgroup label="Andre valideringer">
                 <option value="text_length">Enkel tegnlengde</option>
@@ -1034,7 +1093,7 @@ const RuleEditorModal: React.FC<RuleEditorModalProps> = ({
 
           {/* Dedicated Constraint Sections */}
           {/* 1. Missing Values Constraint Editor */}
-          {formData.type === 'missing_values' && (
+          {formData.type === "missing_values" && (
             <div className="rounded-xl border border-[rgba(255,255,255,0.08)] bg-[#141414] p-3.5 space-y-3">
               <div className="flex items-center gap-2 text-white font-semibold">
                 <ShieldCheck className="h-4 w-4 text-[#39D9E6]" />
@@ -1045,7 +1104,9 @@ const RuleEditorModal: React.FC<RuleEditorModalProps> = ({
                   <input
                     type="checkbox"
                     checked={formData.params.disallowEmpty !== false}
-                    onChange={(e) => handleParamChange('disallowEmpty', e.target.checked)}
+                    onChange={(e) =>
+                      handleParamChange("disallowEmpty", e.target.checked)
+                    }
                     className="rounded border-[#444] bg-[#111] text-[#8F2BFF] focus:ring-0"
                   />
                   <span>Forby tomme strenger (&quot;&quot;)</span>
@@ -1055,7 +1116,12 @@ const RuleEditorModal: React.FC<RuleEditorModalProps> = ({
                   <input
                     type="checkbox"
                     checked={formData.params.disallowWhitespaceOnly !== false}
-                    onChange={(e) => handleParamChange('disallowWhitespaceOnly', e.target.checked)}
+                    onChange={(e) =>
+                      handleParamChange(
+                        "disallowWhitespaceOnly",
+                        e.target.checked,
+                      )
+                    }
                     className="rounded border-[#444] bg-[#111] text-[#8F2BFF] focus:ring-0"
                   />
                   <span>Forby kun mellomrom (&quot; &quot;)</span>
@@ -1064,7 +1130,8 @@ const RuleEditorModal: React.FC<RuleEditorModalProps> = ({
 
               <div>
                 <label className="block text-[11px] text-[#A3A3A0]">
-                  Maksimalt tillatt manglende prosentandel i datasettet (0% = strengt påkrevd for alle rader)
+                  Maksimalt tillatt manglende prosentandel i datasettet (0% =
+                  strengt påkrevd for alle rader)
                 </label>
                 <div className="mt-1 flex items-center gap-3">
                   <input
@@ -1073,7 +1140,12 @@ const RuleEditorModal: React.FC<RuleEditorModalProps> = ({
                     max={20}
                     step={1}
                     value={formData.params.maxMissingPercent ?? 0}
-                    onChange={(e) => handleParamChange('maxMissingPercent', parseInt(e.target.value) || 0)}
+                    onChange={(e) =>
+                      handleParamChange(
+                        "maxMissingPercent",
+                        parseInt(e.target.value) || 0,
+                      )
+                    }
                     className="flex-1 accent-[#8F2BFF]"
                   />
                   <span className="w-12 font-mono text-xs font-bold text-white">
@@ -1085,31 +1157,45 @@ const RuleEditorModal: React.FC<RuleEditorModalProps> = ({
           )}
 
           {/* 2. Range Limits Constraint Editor */}
-          {formData.type === 'range_limits' && (
+          {formData.type === "range_limits" && (
             <div className="rounded-xl border border-[rgba(255,255,255,0.08)] bg-[#141414] p-3.5 space-y-3">
               <div className="flex items-center gap-2 text-white font-semibold">
                 <Hash className="h-4 w-4 text-[#77F23B]" />
                 <span>Grenser og områdebegrensninger (Tegn, Ord, Buffer)</span>
               </div>
-              
+
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[11px] text-[#A3A3A0]">Min. tegnlengde</label>
+                  <label className="block text-[11px] text-[#A3A3A0]">
+                    Min. tegnlengde
+                  </label>
                   <input
                     type="number"
                     min={1}
                     value={formData.params.minLength ?? 3}
-                    onChange={(e) => handleParamChange('minLength', parseInt(e.target.value) || 1)}
+                    onChange={(e) =>
+                      handleParamChange(
+                        "minLength",
+                        parseInt(e.target.value) || 1,
+                      )
+                    }
                     className="mt-1 w-full rounded bg-[#222] p-1.5 font-mono text-white"
                   />
                 </div>
                 <div>
-                  <label className="block text-[11px] text-[#A3A3A0]">Maks. tegnlengde</label>
+                  <label className="block text-[11px] text-[#A3A3A0]">
+                    Maks. tegnlengde
+                  </label>
                   <input
                     type="number"
                     min={2}
                     value={formData.params.maxLength ?? 220}
-                    onChange={(e) => handleParamChange('maxLength', parseInt(e.target.value) || 200)}
+                    onChange={(e) =>
+                      handleParamChange(
+                        "maxLength",
+                        parseInt(e.target.value) || 200,
+                      )
+                    }
                     className="mt-1 w-full rounded bg-[#222] p-1.5 font-mono text-white"
                   />
                 </div>
@@ -1117,22 +1203,36 @@ const RuleEditorModal: React.FC<RuleEditorModalProps> = ({
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[11px] text-[#A3A3A0]">Min. ord</label>
+                  <label className="block text-[11px] text-[#A3A3A0]">
+                    Min. ord
+                  </label>
                   <input
                     type="number"
                     min={1}
                     value={formData.params.minWords ?? 1}
-                    onChange={(e) => handleParamChange('minWords', parseInt(e.target.value) || 1)}
+                    onChange={(e) =>
+                      handleParamChange(
+                        "minWords",
+                        parseInt(e.target.value) || 1,
+                      )
+                    }
                     className="mt-1 w-full rounded bg-[#222] p-1.5 font-mono text-white"
                   />
                 </div>
                 <div>
-                  <label className="block text-[11px] text-[#A3A3A0]">Maks. ord</label>
+                  <label className="block text-[11px] text-[#A3A3A0]">
+                    Maks. ord
+                  </label>
                   <input
                     type="number"
                     min={1}
                     value={formData.params.maxWords ?? 35}
-                    onChange={(e) => handleParamChange('maxWords', parseInt(e.target.value) || 35)}
+                    onChange={(e) =>
+                      handleParamChange(
+                        "maxWords",
+                        parseInt(e.target.value) || 35,
+                      )
+                    }
                     className="mt-1 w-full rounded bg-[#222] p-1.5 font-mono text-white"
                   />
                 </div>
@@ -1140,14 +1240,20 @@ const RuleEditorModal: React.FC<RuleEditorModalProps> = ({
 
               <div>
                 <label className="block text-[11px] text-[#A3A3A0]">
-                  Maksimalt tillatt estimert token-buffer for mikrokontroller (RAM-sikring)
+                  Maksimalt tillatt estimert token-buffer for mikrokontroller
+                  (RAM-sikring)
                 </label>
                 <input
                   type="number"
                   min={10}
                   max={512}
                   value={formData.params.maxTokens ?? 64}
-                  onChange={(e) => handleParamChange('maxTokens', parseInt(e.target.value) || 64)}
+                  onChange={(e) =>
+                    handleParamChange(
+                      "maxTokens",
+                      parseInt(e.target.value) || 64,
+                    )
+                  }
                   className="mt-1 w-full rounded bg-[#222] p-1.5 font-mono text-white"
                 />
               </div>
@@ -1155,7 +1261,7 @@ const RuleEditorModal: React.FC<RuleEditorModalProps> = ({
           )}
 
           {/* 3. Norwegian Character Frequency & Ratio Editor */}
-          {formData.type === 'norwegian_char_frequency' && (
+          {formData.type === "norwegian_char_frequency" && (
             <div className="rounded-xl border border-[rgba(255,255,255,0.08)] bg-[#141414] p-3.5 space-y-3">
               <div className="flex items-center gap-2 text-white font-semibold">
                 <Languages className="h-4 w-4 text-[#B25CFF]" />
@@ -1164,24 +1270,38 @@ const RuleEditorModal: React.FC<RuleEditorModalProps> = ({
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[11px] text-[#A3A3A0]">Min. frekvens av æ, ø, å (%)</label>
+                  <label className="block text-[11px] text-[#A3A3A0]">
+                    Min. frekvens av æ, ø, å (%)
+                  </label>
                   <input
                     type="number"
                     step="0.5"
                     min="0.5"
                     max="20"
                     value={formData.params.minNorwegianFrequencyPercent ?? 1.5}
-                    onChange={(e) => handleParamChange('minNorwegianFrequencyPercent', parseFloat(e.target.value) || 1.0)}
+                    onChange={(e) =>
+                      handleParamChange(
+                        "minNorwegianFrequencyPercent",
+                        parseFloat(e.target.value) || 1.0,
+                      )
+                    }
                     className="mt-1 w-full rounded bg-[#222] p-1.5 font-mono text-white"
                   />
                 </div>
                 <div>
-                  <label className="block text-[11px] text-[#A3A3A0]">Min. antall særnorske tegn</label>
+                  <label className="block text-[11px] text-[#A3A3A0]">
+                    Min. antall særnorske tegn
+                  </label>
                   <input
                     type="number"
                     min="1"
                     value={formData.params.minNorwegianChars ?? 1}
-                    onChange={(e) => handleParamChange('minNorwegianChars', parseInt(e.target.value) || 1)}
+                    onChange={(e) =>
+                      handleParamChange(
+                        "minNorwegianChars",
+                        parseInt(e.target.value) || 1,
+                      )
+                    }
                     className="mt-1 w-full rounded bg-[#222] p-1.5 font-mono text-white"
                   />
                 </div>
@@ -1192,8 +1312,10 @@ const RuleEditorModal: React.FC<RuleEditorModalProps> = ({
                   Spesifikt påkrevde norske tegn i ytringen
                 </label>
                 <div className="flex flex-wrap gap-2">
-                  {(['æ', 'ø', 'å', 'Æ', 'Ø', 'Å'] as const).map((ch) => {
-                    const isSelected = (formData.params.requiredNorwegianCharacters || []).includes(ch);
+                  {(["æ", "ø", "å", "Æ", "Ø", "Å"] as const).map((ch) => {
+                    const isSelected = (
+                      formData.params.requiredNorwegianCharacters || []
+                    ).includes(ch);
                     return (
                       <button
                         key={ch}
@@ -1201,8 +1323,8 @@ const RuleEditorModal: React.FC<RuleEditorModalProps> = ({
                         onClick={() => toggleRequiredChar(ch)}
                         className={`h-8 w-8 rounded-lg font-mono text-xs font-bold transition-all ${
                           isSelected
-                            ? 'bg-[#8F2BFF] text-white shadow-md shadow-[#8F2BFF]/30'
-                            : 'bg-[#222] text-[#888] hover:text-white'
+                            ? "bg-[#8F2BFF] text-white shadow-md shadow-[#8F2BFF]/30"
+                            : "bg-[#222] text-[#888] hover:text-white"
                         }`}
                       >
                         {ch}
@@ -1213,14 +1335,22 @@ const RuleEditorModal: React.FC<RuleEditorModalProps> = ({
               </div>
 
               <div>
-                <label className="block text-[11px] text-[#A3A3A0]">Språkformsmål</label>
+                <label className="block text-[11px] text-[#A3A3A0]">
+                  Språkformsmål
+                </label>
                 <select
-                  value={formData.params.dialectTarget || 'Bokmål'}
-                  onChange={(e) => handleParamChange('dialectTarget', e.target.value)}
+                  value={formData.params.dialectTarget || "Bokmål"}
+                  onChange={(e) =>
+                    handleParamChange("dialectTarget", e.target.value)
+                  }
                   className="mt-1 w-full rounded bg-[#222] p-1.5 text-xs text-white"
                 >
-                  <option value="Bokmål">Bokmål (flagger Nynorsk-spesifikke markører)</option>
-                  <option value="Nynorsk">Nynorsk (flagger Bokmål-spesifikke markører)</option>
+                  <option value="Bokmål">
+                    Bokmål (flagger Nynorsk-spesifikke markører)
+                  </option>
+                  <option value="Nynorsk">
+                    Nynorsk (flagger Bokmål-spesifikke markører)
+                  </option>
                   <option value="any">Både Bokmål og Nynorsk tillatt</option>
                 </select>
               </div>
@@ -1230,22 +1360,37 @@ const RuleEditorModal: React.FC<RuleEditorModalProps> = ({
           {/* Severity & State */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block font-medium text-[#E0E0DC]">Alvorlighetsgrad</label>
+              <label className="block font-medium text-[#E0E0DC]">
+                Alvorlighetsgrad
+              </label>
               <select
                 value={formData.severity}
-                onChange={(e) => setFormData({ ...formData, severity: e.target.value as any })}
+                onChange={(e) =>
+                  setFormData({ ...formData, severity: e.target.value as any })
+                }
                 className="mt-1 w-full rounded-lg border border-[rgba(255,255,255,0.08)] bg-[#1F1F1E] p-2 text-white focus:outline-none"
               >
-                <option value="error">Feil (Gjør raden ugyldig i TinyML-settet)</option>
-                <option value="warning">Advarsel (Flagges med gul varsel)</option>
+                <option value="error">
+                  Feil (Gjør raden ugyldig i TinyML-settet)
+                </option>
+                <option value="warning">
+                  Advarsel (Flagges med gul varsel)
+                </option>
               </select>
             </div>
 
             <div>
-              <label className="block font-medium text-[#E0E0DC]">Tilstand</label>
+              <label className="block font-medium text-[#E0E0DC]">
+                Tilstand
+              </label>
               <select
-                value={formData.enabled ? 'true' : 'false'}
-                onChange={(e) => setFormData({ ...formData, enabled: e.target.value === 'true' })}
+                value={formData.enabled ? "true" : "false"}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    enabled: e.target.value === "true",
+                  })
+                }
                 className="mt-1 w-full rounded-lg border border-[rgba(255,255,255,0.08)] bg-[#1F1F1E] p-2 text-white focus:outline-none"
               >
                 <option value="true">Aktivert</option>
@@ -1255,11 +1400,15 @@ const RuleEditorModal: React.FC<RuleEditorModalProps> = ({
           </div>
 
           <div>
-            <label className="block font-medium text-[#E0E0DC]">Brukertilpasset feilmelding</label>
+            <label className="block font-medium text-[#E0E0DC]">
+              Brukertilpasset feilmelding
+            </label>
             <input
               type="text"
-              value={formData.params.customErrorMessage || ''}
-              onChange={(e) => handleParamChange('customErrorMessage', e.target.value)}
+              value={formData.params.customErrorMessage || ""}
+              onChange={(e) =>
+                handleParamChange("customErrorMessage", e.target.value)
+              }
               placeholder="f.eks. Ytringen overskrider maksimal lengde eller mangler norske tegn."
               className="mt-1 w-full rounded-lg border border-[rgba(255,255,255,0.08)] bg-[#1F1F1E] p-2 text-white placeholder-[#555] focus:outline-none"
             />

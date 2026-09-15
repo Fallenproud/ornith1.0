@@ -1,10 +1,10 @@
 /**
  * ULTIMATE ORNITH 1.0 — Right Pane: Preview Mode
- * 
+ *
  * Interactive TinyML Live Inference Playground & Norwegian Tokenizer Inspector.
  */
 
-import React, { useState } from 'react';
+import React, { useState } from "react";
 import {
   Play,
   Sparkles,
@@ -14,21 +14,21 @@ import {
   AlertCircle,
   HelpCircle,
   ArrowRight,
-} from 'lucide-react';
-import { API } from '../../lib/api';
-import { formatPercent } from '../../lib/i18n';
+} from "lucide-react";
+import { API } from "../../lib/api";
+import { formatPercent } from "../../lib/i18n";
 
 const SAMPLE_PROMPTS = [
-  'Slå på lyset i stuen',
-  'Lukk igjen garasjeporten nå',
-  'Hva er temperaturen på soverommet?',
-  'Det brenner i kjelleren, aktiver alarm!',
-  'Spill litt rolig musikk på kjøkkenet',
-  'Skru ned varmen på panelovnen',
+  "Slå på lyset i stuen",
+  "Lukk igjen garasjeporten nå",
+  "Hva er temperaturen på soverommet?",
+  "Det brenner i kjelleren, aktiver alarm!",
+  "Spill litt rolig musikk på kjøkkenet",
+  "Skru ned varmen på panelovnen",
 ];
 
 export const PreviewMode: React.FC = () => {
-  const [inputText, setInputText] = useState('Slå på lyset i stuen');
+  const [inputText, setInputText] = useState("Slå på lyset i stuen");
   const [prediction, setPrediction] = useState<{
     label: string;
     confidence: number;
@@ -48,7 +48,7 @@ export const PreviewMode: React.FC = () => {
       const res = await API.runInference(text.trim());
       setPrediction(res);
     } catch (err: any) {
-      setErrorMsg(err.message || 'Kunne ikke kjøre inferens');
+      setErrorMsg(err.message || "Kunne ikke kjøre inferens");
     } finally {
       setIsRunning(false);
     }
@@ -68,7 +68,9 @@ export const PreviewMode: React.FC = () => {
           </span>
         </div>
         <p className="mt-1 text-xs text-[#A3A3A0]">
-          Test modellen direkte med vilkårlig norsk tekst. Matrisemultiplikasjonen og Softmax kjøres med de trente TinyML-vektene.
+          Test modellen direkte med vilkårlig norsk tekst.
+          Matrisemultiplikasjonen og Softmax kjøres med de trente
+          TinyML-vektene.
         </p>
       </div>
 
@@ -82,7 +84,7 @@ export const PreviewMode: React.FC = () => {
             type="text"
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handlePredict()}
+            onKeyDown={(e) => e.key === "Enter" && handlePredict()}
             placeholder="F.eks: 'Skru på taklyset' eller 'Lås garasjen'..."
             className="flex-1 rounded-lg border border-[rgba(255,255,255,0.1)] bg-[#1A1A1A] px-3.5 py-2 text-xs text-white placeholder-[#555] focus:border-[#8F2BFF] focus:outline-none"
           />
@@ -92,7 +94,7 @@ export const PreviewMode: React.FC = () => {
             className="flex items-center gap-2 rounded-lg bg-[#8F2BFF] px-4 py-2 text-xs font-medium text-white shadow-md shadow-[#8F2BFF]/20 transition-all hover:bg-[#A347FF] disabled:opacity-50"
           >
             <Play className="h-3.5 w-3.5 fill-current" />
-            <span>{isRunning ? 'Kjører...' : 'Kjør inferens'}</span>
+            <span>{isRunning ? "Kjører..." : "Kjør inferens"}</span>
           </button>
         </div>
 
@@ -128,7 +130,9 @@ export const PreviewMode: React.FC = () => {
           {/* Main Top Prediction Banner */}
           <div className="rounded-xl border border-[rgba(255,255,255,0.08)] bg-gradient-to-r from-[#171717] to-[#141414] p-5 shadow-lg">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-[#A3A3A0]">Klassifisert Intent:</span>
+              <span className="text-xs font-medium text-[#A3A3A0]">
+                Klassifisert Intent:
+              </span>
               <span className="font-mono text-xs text-[#39D9E6]">
                 Konfidens: {formatPercent(prediction.confidence, 1)}
               </span>
@@ -177,14 +181,14 @@ export const PreviewMode: React.FC = () => {
                       <div className="mb-1 flex items-center justify-between text-xs">
                         <span
                           className={`font-mono ${
-                            isTop ? 'font-bold text-white' : 'text-[#A3A3A0]'
+                            isTop ? "font-bold text-white" : "text-[#A3A3A0]"
                           }`}
                         >
                           {cls}
                         </span>
                         <span
                           className={`font-mono text-[11px] ${
-                            isTop ? 'font-bold text-[#77F23B]' : 'text-[#888]'
+                            isTop ? "font-bold text-[#77F23B]" : "text-[#888]"
                           }`}
                         >
                           {formatPercent(prob, 1)}
@@ -194,8 +198,8 @@ export const PreviewMode: React.FC = () => {
                         <div
                           className={`h-full transition-all duration-300 ${
                             isTop
-                              ? 'bg-gradient-to-r from-[#8F2BFF] to-[#39D9E6]'
-                              : 'bg-[rgba(255,255,255,0.15)]'
+                              ? "bg-gradient-to-r from-[#8F2BFF] to-[#39D9E6]"
+                              : "bg-[rgba(255,255,255,0.15)]"
                           }`}
                           style={{ width: `${Math.max(prob * 100, 2)}%` }}
                         />

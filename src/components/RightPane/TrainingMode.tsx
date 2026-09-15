@@ -1,10 +1,10 @@
 /**
  * ULTIMATE ORNITH 1.0 — Right Pane: Training Mode
- * 
+ *
  * Real TinyML training orchestration, hyperparameter tuning & live SSE curves.
  */
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from "react";
 import {
   Play,
   Square,
@@ -19,17 +19,17 @@ import {
   Package,
   FolderArchive,
   Download,
-} from 'lucide-react';
+} from "lucide-react";
 import {
   TrainingRun,
   TrainingHyperparameters,
   ProjectMetadata,
   DatasetMetadata,
-} from '../../types';
-import { SvgLossChart, SvgAccuracyChart } from '../SvgCharts';
-import { API } from '../../lib/api';
-import { formatNumber, formatPercent } from '../../lib/i18n';
-import { ExportModal } from '../ExportModal';
+} from "../../types";
+import { SvgLossChart, SvgAccuracyChart } from "../SvgCharts";
+import { API } from "../../lib/api";
+import { formatNumber, formatPercent } from "../../lib/i18n";
+import { ExportModal } from "../ExportModal";
 
 interface TrainingModeProps {
   activeProject: ProjectMetadata | null;
@@ -46,27 +46,28 @@ export const TrainingMode: React.FC<TrainingModeProps> = ({
   onStartTraining,
   onCancelTraining,
 }) => {
-  const [hyperparameters, setHyperparameters] = useState<TrainingHyperparameters>({
-    epochs: 25,
-    batchSize: 8,
-    learningRate: 0.02,
-    optimizer: 'adam',
-    seed: 42,
-    earlyStoppingPatience: 6,
-  });
+  const [hyperparameters, setHyperparameters] =
+    useState<TrainingHyperparameters>({
+      epochs: 25,
+      batchSize: 8,
+      learningRate: 0.02,
+      optimizer: "adam",
+      seed: 42,
+      earlyStoppingPatience: 6,
+    });
 
-  const [activeTab, setActiveTab] = useState<'curves' | 'logs'>('curves');
+  const [activeTab, setActiveTab] = useState<"curves" | "logs">("curves");
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const logsEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (activeTab === 'logs') {
-      logsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (activeTab === "logs") {
+      logsEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }
   }, [activeRun?.logLines?.length, activeTab]);
 
-  const isRunning = activeRun?.status === 'running';
-  const isCompleted = activeRun?.status === 'completed';
+  const isRunning = activeRun?.status === "running";
+  const isCompleted = activeRun?.status === "completed";
 
   const history = activeRun?.history || [];
   const latestMetric = history[history.length - 1];
@@ -84,21 +85,22 @@ export const TrainingMode: React.FC<TrainingModeProps> = ({
             <span
               className={`rounded px-2 py-0.5 font-mono text-xs font-semibold ${
                 isRunning
-                  ? 'bg-[#39D9E6]/20 text-[#39D9E6] animate-pulse'
+                  ? "bg-[#39D9E6]/20 text-[#39D9E6] animate-pulse"
                   : isCompleted
-                  ? 'bg-[#77F23B]/20 text-[#77F23B]'
-                  : 'bg-[#222] text-[#888]'
+                    ? "bg-[#77F23B]/20 text-[#77F23B]"
+                    : "bg-[#222] text-[#888]"
               }`}
             >
               {isRunning
                 ? `Kjører: Epoke ${activeRun?.currentEpoch}/${activeRun?.totalEpochs}`
                 : isCompleted
-                ? 'Fullført'
-                : 'Klar for start'}
+                  ? "Fullført"
+                  : "Klar for start"}
             </span>
           </div>
           <p className="mt-1 text-xs text-[#A3A3A0]">
-            Sanntids gradient descent og Adam-optimalisering med direkte tilbakemelding over Server-Sent Events.
+            Sanntids gradient descent og Adam-optimalisering med direkte
+            tilbakemelding over Server-Sent Events.
           </p>
         </div>
 
@@ -128,7 +130,9 @@ export const TrainingMode: React.FC<TrainingModeProps> = ({
               className="flex items-center gap-2 rounded-lg bg-gradient-to-r from-[#8F2BFF] to-[#39D9E6] px-5 py-2 text-xs font-semibold text-white shadow-lg shadow-[#8F2BFF]/25 transition-all hover:opacity-90 disabled:opacity-50"
             >
               <Play className="h-3.5 w-3.5 fill-current" />
-              <span>{isCompleted ? 'Tren På Nytt' : 'Start Modelltrening'}</span>
+              <span>
+                {isCompleted ? "Tren På Nytt" : "Start Modelltrening"}
+              </span>
             </button>
           )}
         </div>
@@ -142,9 +146,14 @@ export const TrainingMode: React.FC<TrainingModeProps> = ({
               <CheckCircle2 className="h-5 w-5" />
             </div>
             <div>
-              <h3 className="text-xs font-bold text-white">Trening Fullført!</h3>
+              <h3 className="text-xs font-bold text-white">
+                Trening Fullført!
+              </h3>
               <p className="text-[11px] text-[#A3A3A0]">
-                Modellen er klar for eksport i <strong>TensorFlow Lite (.tflite)</strong>, <strong>SavedModel</strong> og <strong>C-header</strong> med metadata og testlogger.
+                Modellen er klar for eksport i{" "}
+                <strong>TensorFlow Lite (.tflite)</strong>,{" "}
+                <strong>SavedModel</strong> og <strong>C-header</strong> med
+                metadata og testlogger.
               </p>
             </div>
           </div>
@@ -166,7 +175,7 @@ export const TrainingMode: React.FC<TrainingModeProps> = ({
           <span className="text-[11px] text-[#A3A3A0]">Tap (Loss)</span>
           <div className="mt-1 flex items-baseline gap-2">
             <span className="font-mono text-xl font-bold text-white">
-              {latestMetric ? latestMetric.loss.toFixed(4) : '-'}
+              {latestMetric ? latestMetric.loss.toFixed(4) : "-"}
             </span>
             {latestMetric && (
               <span className="font-mono text-[10px] text-[#77F23B]">
@@ -180,7 +189,7 @@ export const TrainingMode: React.FC<TrainingModeProps> = ({
           <span className="text-[11px] text-[#A3A3A0]">Nøyaktighet</span>
           <div className="mt-1 flex items-baseline gap-2">
             <span className="font-mono text-xl font-bold text-white">
-              {latestMetric ? formatPercent(latestMetric.accuracy, 1) : '-'}
+              {latestMetric ? formatPercent(latestMetric.accuracy, 1) : "-"}
             </span>
             {latestMetric && (
               <span className="font-mono text-[10px] text-[#39D9E6]">
@@ -191,7 +200,9 @@ export const TrainingMode: React.FC<TrainingModeProps> = ({
         </div>
 
         <div className="rounded-xl border border-[rgba(255,255,255,0.06)] bg-[#141414] p-3.5">
-          <span className="text-[11px] text-[#A3A3A0]">Beregnet RAM på enhet</span>
+          <span className="text-[11px] text-[#A3A3A0]">
+            Beregnet RAM på enhet
+          </span>
           <div className="mt-1 flex items-baseline gap-2">
             <span className="font-mono text-xl font-bold text-[#77F23B]">
               ~{activeRun?.finalMetrics?.memoryKb || 4.2} KB
@@ -216,7 +227,9 @@ export const TrainingMode: React.FC<TrainingModeProps> = ({
         <div className="mb-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Sliders className="h-4 w-4 text-[#39D9E6]" />
-            <h3 className="text-xs font-semibold text-white">Hyperparametre & Konfigurasjon</h3>
+            <h3 className="text-xs font-semibold text-white">
+              Hyperparametre & Konfigurasjon
+            </h3>
           </div>
           <span className="font-mono text-[11px] text-[#A3A3A0]">
             Mål: Arduino Nano 33 BLE / ESP32
@@ -225,7 +238,9 @@ export const TrainingMode: React.FC<TrainingModeProps> = ({
 
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
           <div>
-            <label className="text-[11px] text-[#A3A3A0]">Epoker (Epochs)</label>
+            <label className="text-[11px] text-[#A3A3A0]">
+              Epoker (Epochs)
+            </label>
             <input
               type="number"
               min={5}
@@ -233,19 +248,27 @@ export const TrainingMode: React.FC<TrainingModeProps> = ({
               disabled={isRunning}
               value={hyperparameters.epochs}
               onChange={(e) =>
-                setHyperparameters({ ...hyperparameters, epochs: Number(e.target.value) })
+                setHyperparameters({
+                  ...hyperparameters,
+                  epochs: Number(e.target.value),
+                })
               }
               className="mt-1 w-full rounded-md border border-[rgba(255,255,255,0.08)] bg-[#1A1A1A] px-2.5 py-1.5 font-mono text-xs text-white focus:border-[#8F2BFF] focus:outline-none"
             />
           </div>
 
           <div>
-            <label className="text-[11px] text-[#A3A3A0]">Batch Størrelse</label>
+            <label className="text-[11px] text-[#A3A3A0]">
+              Batch Størrelse
+            </label>
             <select
               disabled={isRunning}
               value={hyperparameters.batchSize}
               onChange={(e) =>
-                setHyperparameters({ ...hyperparameters, batchSize: Number(e.target.value) })
+                setHyperparameters({
+                  ...hyperparameters,
+                  batchSize: Number(e.target.value),
+                })
               }
               className="mt-1 w-full rounded-md border border-[rgba(255,255,255,0.08)] bg-[#1A1A1A] px-2.5 py-1.5 font-mono text-xs text-white focus:outline-none"
             >
@@ -257,7 +280,9 @@ export const TrainingMode: React.FC<TrainingModeProps> = ({
           </div>
 
           <div>
-            <label className="text-[11px] text-[#A3A3A0]">Læringsrate (Learning Rate)</label>
+            <label className="text-[11px] text-[#A3A3A0]">
+              Læringsrate (Learning Rate)
+            </label>
             <input
               type="number"
               step={0.005}
@@ -266,7 +291,10 @@ export const TrainingMode: React.FC<TrainingModeProps> = ({
               disabled={isRunning}
               value={hyperparameters.learningRate}
               onChange={(e) =>
-                setHyperparameters({ ...hyperparameters, learningRate: Number(e.target.value) })
+                setHyperparameters({
+                  ...hyperparameters,
+                  learningRate: Number(e.target.value),
+                })
               }
               className="mt-1 w-full rounded-md border border-[rgba(255,255,255,0.08)] bg-[#1A1A1A] px-2.5 py-1.5 font-mono text-xs text-white focus:border-[#8F2BFF] focus:outline-none"
             />
@@ -278,7 +306,10 @@ export const TrainingMode: React.FC<TrainingModeProps> = ({
               disabled={isRunning}
               value={hyperparameters.optimizer}
               onChange={(e) =>
-                setHyperparameters({ ...hyperparameters, optimizer: e.target.value as any })
+                setHyperparameters({
+                  ...hyperparameters,
+                  optimizer: e.target.value as any,
+                })
               }
               className="mt-1 w-full rounded-md border border-[rgba(255,255,255,0.08)] bg-[#1A1A1A] px-2.5 py-1.5 font-mono text-xs text-white focus:outline-none"
             >
@@ -292,11 +323,11 @@ export const TrainingMode: React.FC<TrainingModeProps> = ({
       {/* Telemetry Switcher (Curves vs Live Logs) */}
       <div className="mb-4 flex items-center gap-2 border-b border-[rgba(255,255,255,0.06)] pb-2">
         <button
-          onClick={() => setActiveTab('curves')}
+          onClick={() => setActiveTab("curves")}
           className={`flex items-center gap-1.5 rounded-md px-3 py-1 text-xs transition-colors ${
-            activeTab === 'curves'
-              ? 'bg-[#1C1C1A] text-white border border-[rgba(255,255,255,0.08)]'
-              : 'text-[#888] hover:text-white'
+            activeTab === "curves"
+              ? "bg-[#1C1C1A] text-white border border-[rgba(255,255,255,0.08)]"
+              : "text-[#888] hover:text-white"
           }`}
         >
           <Activity className="h-3.5 w-3.5 text-[#8F2BFF]" />
@@ -304,11 +335,11 @@ export const TrainingMode: React.FC<TrainingModeProps> = ({
         </button>
 
         <button
-          onClick={() => setActiveTab('logs')}
+          onClick={() => setActiveTab("logs")}
           className={`flex items-center gap-1.5 rounded-md px-3 py-1 text-xs transition-colors ${
-            activeTab === 'logs'
-              ? 'bg-[#1C1C1A] text-white border border-[rgba(255,255,255,0.08)]'
-              : 'text-[#888] hover:text-white'
+            activeTab === "logs"
+              ? "bg-[#1C1C1A] text-white border border-[rgba(255,255,255,0.08)]"
+              : "text-[#888] hover:text-white"
           }`}
         >
           <Terminal className="h-3.5 w-3.5 text-[#39D9E6]" />
@@ -317,17 +348,21 @@ export const TrainingMode: React.FC<TrainingModeProps> = ({
       </div>
 
       {/* Content depending on tab */}
-      {activeTab === 'curves' ? (
+      {activeTab === "curves" ? (
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           {/* Loss Curve */}
           <div className="rounded-xl border border-[rgba(255,255,255,0.06)] bg-[#141414] p-4">
-            <h3 className="mb-2 text-xs font-semibold text-white">Tapskurve (Cross-Entropy Loss)</h3>
+            <h3 className="mb-2 text-xs font-semibold text-white">
+              Tapskurve (Cross-Entropy Loss)
+            </h3>
             <SvgLossChart history={history} />
           </div>
 
           {/* Accuracy Curve */}
           <div className="rounded-xl border border-[rgba(255,255,255,0.06)] bg-[#141414] p-4">
-            <h3 className="mb-2 text-xs font-semibold text-white">Nøyaktighetskurve (Categorical Accuracy)</h3>
+            <h3 className="mb-2 text-xs font-semibold text-white">
+              Nøyaktighetskurve (Categorical Accuracy)
+            </h3>
             <SvgAccuracyChart history={history} />
           </div>
         </div>
@@ -341,13 +376,13 @@ export const TrainingMode: React.FC<TrainingModeProps> = ({
                   <span className="text-[#555] select-none mr-2">{i + 1}</span>
                   <span
                     className={
-                      line.includes('FEIL')
-                        ? 'text-[#FF453A]'
-                        : line.includes('fullført')
-                        ? 'text-[#77F23B]'
-                        : line.includes('Epoke')
-                        ? 'text-[#F4F4F2]'
-                        : 'text-[#A3A3A0]'
+                      line.includes("FEIL")
+                        ? "text-[#FF453A]"
+                        : line.includes("fullført")
+                          ? "text-[#77F23B]"
+                          : line.includes("Epoke")
+                            ? "text-[#F4F4F2]"
+                            : "text-[#A3A3A0]"
                     }
                   >
                     {line}
@@ -355,7 +390,9 @@ export const TrainingMode: React.FC<TrainingModeProps> = ({
                 </div>
               ))
             ) : (
-              <div className="text-[#555]">Ingen logglinjer tilgjengelig ennå.</div>
+              <div className="text-[#555]">
+                Ingen logglinjer tilgjengelig ennå.
+              </div>
             )}
             <div ref={logsEndRef} />
           </div>

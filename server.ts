@@ -12,10 +12,11 @@ import { createServer as createViteServer } from 'vite';
 import JSZip from 'jszip';
 import { StorageManager } from './server/storage';
 import { TinyMLEngine, TrainedModelWeights } from './server/tinyml_engine';
+import { ResourceMonitor } from './server/resource_monitor';
 import { TensorFlowExportService, ExportPackageOptions } from './server/tf_export';
 import { askGeminiOrnith, isGeminiConfigured } from './server/gemini_service';
 import { ModelGateway } from './server/gateway';
-import { requireAuth, optionalAuth, handleAuthSession } from './server/auth_middleware';
+import { requireAuth, optionalAuth, handleAuthSession, authorizeProjectAccess, parseAndValidateToken } from './server/auth_middleware';
 import {
   ProjectMetadata,
   DatasetMetadata,
@@ -58,6 +59,9 @@ interface ActiveTrainingSession {
 let activeSession: ActiveTrainingSession | null = null;
 const sseClients: Response[] = [];
 
+// Initialize real-time hardware resource telemetry stream (RAM & CPU)
+ResourceMonitor.init(() => activeSession);
+
 function broadcastSSE(eventType: string, data: any) {
   const payload = `event: ${eventType}\ndata: ${JSON.stringify(data)}\n\n`;
   for (let i = sseClients.length - 1; i >= 0; i--) {
@@ -74,6 +78,18 @@ function broadcastSSE(eventType: string, data: any) {
 // 0. Authentication Gateway & OAuth2 Session Verification
 // -------------------------------------------------------------
 app.get('/api/auth/session', handleAuthSession);
+
+app.post('/api/auth/validate-token', (req: Request, res: Response) => {
+  const token = req.body?.token || (typeof req.headers.authorization === 'string' ? req.headers.authorization.replace(/^Bearer\s+/i, '') : null);
+  if (!token) {
+    return res.status(400).json({ valid: false, error: 'Autentiseringstoken mangler' });
+  }
+  const user = parseAndValidateToken(token);
+  if (!user) {
+    return res.status(401).json({ valid: false, error: 'Ugyldig eller utløpt OAuth2 token' });
+  }
+  return res.json({ valid: true, user });
+});
 
 app.get('/api/auth/providers', (req: Request, res: Response) => {
   res.json({
@@ -133,6 +149,15 @@ app.get('/api/status', (req: Request, res: Response) => {
   });
 });
 
+// Real-time hardware telemetry: process RAM and CPU load
+app.get('/api/telemetry/resources', (req: Request, res: Response) => {
+  res.json({
+    current: ResourceMonitor.getCurrentPoint(),
+    history: ResourceMonitor.getHistory(),
+    updatedAt: new Date().toISOString(),
+  });
+});
+
 // -------------------------------------------------------------
 // 2. Projects (Protected Mutation Endpoints)
 // -------------------------------------------------------------
@@ -162,10 +187,18 @@ app.post('/api/projects', requireAuth, (req: Request, res: Response) => {
 app.get('/api/projects/:id', (req: Request, res: Response) => {
   const project = StorageManager.getProject(req.params.id);
   if (!project) return res.status(404).json({ error: 'Prosjekt ikke funnet' });
+  if (!authorizeProjectAccess(req.user, project)) {
+    return res.status(403).json({ error: 'Ingen tilgang til dette prosjektet. Vennligst autentiser med gyldig OAuth2-konto.' });
+  }
   res.json(project);
 });
 
 app.delete('/api/projects/:id', requireAuth, (req: Request, res: Response) => {
+  const project = StorageManager.getProject(req.params.id);
+  if (!project) return res.status(404).json({ error: 'Prosjekt ikke funnet' });
+  if (!authorizeProjectAccess(req.user, project)) {
+    return res.status(403).json({ error: 'Uautorisert handling: Du har ikke rettigheter til å slette dette prosjektet.' });
+  }
   const success = StorageManager.deleteProject(req.params.id);
   res.json({ success });
 });
@@ -174,6 +207,9 @@ app.delete('/api/projects/:id', requireAuth, (req: Request, res: Response) => {
 app.get('/api/projects/:id/validation-rules', (req: Request, res: Response) => {
   const project = StorageManager.getProject(req.params.id);
   if (!project) return res.status(404).json({ error: 'Prosjekt ikke funnet' });
+  if (!authorizeProjectAccess(req.user, project)) {
+    return res.status(403).json({ error: 'Ingen tilgang til dette prosjektets valideringsregler.' });
+  }
   const config = project.validationConfig || getDefaultProjectValidationConfig();
   res.json(config);
 });
@@ -181,6 +217,9 @@ app.get('/api/projects/:id/validation-rules', (req: Request, res: Response) => {
 app.put('/api/projects/:id/validation-rules', requireAuth, (req: Request, res: Response) => {
   const project = StorageManager.getProject(req.params.id);
   if (!project) return res.status(404).json({ error: 'Prosjekt ikke funnet' });
+  if (!authorizeProjectAccess(req.user, project)) {
+    return res.status(403).json({ error: 'Uautorisert handling: Du har ikke rettigheter til å oppdatere dette prosjektets valideringsregler.' });
+  }
   const { rules, strictMode, autoCleanWhitespace } = req.body;
   project.validationConfig = {
     rules: Array.isArray(rules) ? rules : (project.validationConfig?.rules || getDefaultProjectValidationConfig().rules),
@@ -429,6 +468,89 @@ app.post('/api/datasets/:id/validate', requireAuth, (req: Request, res: Response
   }
 });
 
+// Clean dataset: automated remediation for duplicates and missing labels
+app.post('/api/datasets/:id/clean', requireAuth, (req: Request, res: Response) => {
+  try {
+    const dataset = StorageManager.getDataset(req.params.id);
+    if (!dataset) return res.status(404).json({ error: 'Datasett ikke funnet' });
+
+    const { action, recordIdsToRemove, removeDuplicates, removeUnlabeled, projectId } = req.body;
+    
+    const toRemoveSet = new Set<string>(Array.isArray(recordIdsToRemove) ? recordIdsToRemove : []);
+
+    if (removeDuplicates) {
+      const seen = new Set<string>();
+      dataset.records.forEach((r) => {
+        const norm = String(r.text || '')
+          .toLowerCase()
+          .replace(/[.,\/#!$%\^&\*;:{}=\-_`~()?"'«»]/g, '')
+          .replace(/\s+/g, ' ')
+          .trim();
+        if (seen.has(norm)) {
+          toRemoveSet.add(r.id);
+        } else {
+          seen.add(norm);
+        }
+      });
+    }
+
+    if (removeUnlabeled) {
+      const invalidLabels = new Set([
+        '',
+        'unlabeled',
+        'ukjent',
+        'unknown',
+        'null',
+        'undefined',
+        'none',
+        'mangler',
+        'missing',
+        '-',
+        '?',
+        'n/a',
+        'na',
+      ]);
+      dataset.records.forEach((r) => {
+        const lbl = String(r.label || '').trim().toLowerCase();
+        if (!lbl || invalidLabels.has(lbl)) {
+          toRemoveSet.add(r.id);
+        }
+      });
+    }
+
+    const originalCount = dataset.records.length;
+    const remainingRecords = dataset.records.filter((r) => !toRemoveSet.has(r.id));
+    const removedCount = originalCount - remainingRecords.length;
+
+    // Recalculate validation metrics
+    let config: ProjectValidationConfig;
+    if (projectId) {
+      const project = StorageManager.getProject(projectId);
+      config = project?.validationConfig || getDefaultProjectValidationConfig();
+    } else {
+      config = getDefaultProjectValidationConfig();
+    }
+
+    const { records: validatedRecords, summary } = validateDatasetRecords(remainingRecords, config);
+
+    dataset.meta.validation = summary;
+    dataset.meta.rowCount = validatedRecords.length;
+
+    StorageManager.saveDataset(dataset.meta, validatedRecords);
+
+    res.json({
+      success: true,
+      meta: dataset.meta,
+      records: validatedRecords,
+      summary,
+      removedCount,
+    });
+  } catch (err: any) {
+    console.error('Dataset cleaning error:', err);
+    res.status(500).json({ error: `Kunne ikke rense datasett: ${err.message}` });
+  }
+});
+
 // -------------------------------------------------------------
 // 4. Real TinyML Training & Live Telemetry (SSE)
 // -------------------------------------------------------------
@@ -578,6 +700,7 @@ app.post('/api/training/start', requireAuth, async (req: Request, res: Response)
             );
 
             StorageManager.saveRun(run);
+            ResourceMonitor.tick();
             broadcastSSE('epoch_update', {
               runId,
               metric: step.metric,

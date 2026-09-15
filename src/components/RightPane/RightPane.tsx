@@ -1,10 +1,10 @@
 /**
  * ULTIMATE ORNITH 1.0 — Right Pane Container
- * 
+ *
  * Houses the 7 canonical modes with tabbed navigation and status badges.
  */
 
-import React from 'react';
+import React from "react";
 import {
   FolderTree,
   FileCode2,
@@ -13,22 +13,27 @@ import {
   Activity,
   BarChart3,
   Package,
-} from 'lucide-react';
+  Zap,
+  Gauge,
+} from "lucide-react";
 import {
   RightPaneMode,
   DatasetMetadata,
   ProjectMetadata,
   TrainingRun,
   TrainingHyperparameters,
-} from '../../types';
-import { FilesMode } from './FilesMode';
-import { CodeMode } from './CodeMode';
-import { DatasetMode } from './DatasetMode';
-import { PreviewMode } from './PreviewMode';
-import { TrainingMode } from './TrainingMode';
-import { EvaluationMode } from './EvaluationMode';
-import { ArtifactsMode } from './ArtifactsMode';
-import { PerformanceTelemetryMonitor } from './PerformanceTelemetryMonitor';
+} from "../../types";
+import { FilesMode } from "./FilesMode";
+import { CodeMode } from "./CodeMode";
+import { DatasetMode } from "./DatasetMode";
+import { PreviewMode } from "./PreviewMode";
+import { TrainingMode } from "./TrainingMode";
+import { EvaluationMode } from "./EvaluationMode";
+import { ArtifactsMode } from "./ArtifactsMode";
+import { TelemetryDashboard } from "./TelemetryDashboard";
+import { PerformanceTelemetryMonitor } from "./PerformanceTelemetryMonitor";
+import { InferenceMode } from "./InferenceMode";
+import { BenchmarkMode } from "./BenchmarkMode";
 
 interface RightPaneProps {
   activeMode: RightPaneMode;
@@ -44,13 +49,16 @@ interface RightPaneProps {
 }
 
 const MODES = [
-  { id: 'dataset' as RightPaneMode, label: 'Datasett', icon: Database },
-  { id: 'training' as RightPaneMode, label: 'Trening', icon: Activity },
-  { id: 'preview' as RightPaneMode, label: 'Forhåndsvisning', icon: Play },
-  { id: 'evaluation' as RightPaneMode, label: 'Evaluering', icon: BarChart3 },
-  { id: 'code' as RightPaneMode, label: 'Kode', icon: FileCode2 },
-  { id: 'artifacts' as RightPaneMode, label: 'Artefakter', icon: Package },
-  { id: 'files' as RightPaneMode, label: 'Filer', icon: FolderTree },
+  { id: "dataset" as RightPaneMode, label: "Datasett", icon: Database },
+  { id: "training" as RightPaneMode, label: "Trening", icon: Activity },
+  { id: "evaluation" as RightPaneMode, label: "Evaluering", icon: BarChart3 },
+  { id: "artifacts" as RightPaneMode, label: "Artefakter", icon: Package },
+  { id: "inference" as RightPaneMode, label: "Inferens", icon: Zap },
+  { id: "benchmark" as RightPaneMode, label: "Benchmark", icon: Gauge },
+  { id: "preview" as RightPaneMode, label: "Forhåndsvisning", icon: Play },
+  { id: "code" as RightPaneMode, label: "Kode", icon: FileCode2 },
+  { id: "files" as RightPaneMode, label: "Filer", icon: FolderTree },
+  { id: "telemetry" as RightPaneMode, label: "Telemetri", icon: Activity },
 ];
 
 export const RightPane: React.FC<RightPaneProps> = ({
@@ -80,17 +88,17 @@ export const RightPane: React.FC<RightPaneProps> = ({
                 onClick={() => onSelectMode(mode.id)}
                 className={`flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-medium transition-all ${
                   isActive
-                    ? 'border border-[rgba(255,255,255,0.1)] bg-[#1F1F1E] text-white shadow-sm'
-                    : 'text-[#888] hover:bg-[#161616] hover:text-[#CCC]'
+                    ? "border border-[rgba(255,255,255,0.1)] bg-[#1F1F1E] text-white shadow-sm"
+                    : "text-[#888] hover:bg-[#161616] hover:text-[#CCC]"
                 }`}
               >
                 <Icon
                   className={`h-3.5 w-3.5 ${
-                    isActive ? 'text-[#8F2BFF]' : 'text-[#777]'
+                    isActive ? "text-[#8F2BFF]" : "text-[#777]"
                   }`}
                 />
                 <span>{mode.label}</span>
-                {mode.id === 'training' && activeRun?.status === 'running' && (
+                {mode.id === "training" && activeRun?.status === "running" && (
                   <span className="flex h-2 w-2 rounded-full bg-[#39D9E6] animate-ping" />
                 )}
               </button>
@@ -109,7 +117,7 @@ export const RightPane: React.FC<RightPaneProps> = ({
 
       {/* Mode Viewport */}
       <div className="flex-1 overflow-hidden">
-        {activeMode === 'dataset' && (
+        {activeMode === "dataset" && (
           <DatasetMode
             activeDataset={activeDataset}
             activeProject={activeProject}
@@ -118,7 +126,7 @@ export const RightPane: React.FC<RightPaneProps> = ({
             onDatasetUpdated={onDatasetUpdated}
           />
         )}
-        {activeMode === 'training' && (
+        {activeMode === "training" && (
           <TrainingMode
             activeProject={activeProject}
             activeDataset={activeDataset}
@@ -127,16 +135,29 @@ export const RightPane: React.FC<RightPaneProps> = ({
             onCancelTraining={onCancelTraining}
           />
         )}
-        {activeMode === 'preview' && <PreviewMode />}
-        {activeMode === 'evaluation' && <EvaluationMode activeRun={activeRun} />}
-        {activeMode === 'code' && <CodeMode />}
-        {activeMode === 'artifacts' && <ArtifactsMode activeRun={activeRun} />}
-        {activeMode === 'files' && <FilesMode />}
+        {activeMode === "preview" && <PreviewMode />}
+        {activeMode === "evaluation" && (
+          <EvaluationMode activeRun={activeRun} />
+        )}
+        {activeMode === "inference" && (
+          <InferenceMode activeProject={activeProject} activeRun={activeRun} />
+        )}
+        {activeMode === "benchmark" && (
+          <BenchmarkMode activeProject={activeProject} />
+        )}
+        {activeMode === "code" && <CodeMode />}
+        {activeMode === "artifacts" && <ArtifactsMode activeRun={activeRun} />}
+        {activeMode === "files" && <FilesMode />}
+        {activeMode === "telemetry" && (
+          <TelemetryDashboard onNavigateToMode={onSelectMode} />
+        )}
       </div>
 
       {/* Persistent Firestore Read Latency & Concurrency Telemetry Monitor */}
-      <PerformanceTelemetryMonitor compact={false} />
+      <PerformanceTelemetryMonitor
+        compact={false}
+        onOpenDashboard={() => onSelectMode("telemetry")}
+      />
     </main>
   );
 };
-
